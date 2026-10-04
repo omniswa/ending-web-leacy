@@ -62,7 +62,7 @@
     if (!shown.length) {
       const none = !all.length;
       empty.innerHTML = `
-        <h2>${none ? "No favorites yet" : `Nothing ${state.filter === "finished" ? "finished" : "in progress"}`}</h2>
+        <h2>${none ? "No favorites yet" : `Nothing ${state.filter === "finished" ? "finished" : "unfinished"}`}</h2>
         <p>${none ? "Tap the heart on any book to save it here." : "Try a different filter."}</p>
         ${none ? '<a class="btn btn-primary" href="index.html">Browse the library</a>' : ""}`;
     }
@@ -72,7 +72,8 @@
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const id = Number(btn.closest(".fav-card").dataset.id);
-    if (btn.dataset.action === "remove") {
+    const action = btn.dataset.action;
+    if (action === "remove") {
       Favs.toggle(id);
       toast("Removed from favorites");
     } else {
@@ -81,6 +82,11 @@
       toast(done ? "Marked as finished" : "Marked as unfinished");
     }
     render();
+    // Re-rendering drops focus; put it back where the user was
+    const again = list.querySelector(
+      `[data-id="${id}"] [data-action="${action}"]`,
+    );
+    (again || document.querySelector('.tabs [aria-pressed="true"]'))?.focus();
   });
 
   document.querySelector(".tabs").addEventListener("click", (e) => {
@@ -93,9 +99,9 @@
     render();
   });
 
-  window.addEventListener("pageshow", (e) => {
-    if (e.persisted && state.books.length) render();
-  });
+  const refresh = () => state.books.length && render();
+  window.addEventListener("pageshow", (e) => e.persisted && refresh());
+  window.addEventListener("storage", refresh);
 
   loadBooks()
     .then((books) => {

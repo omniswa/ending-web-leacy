@@ -154,6 +154,17 @@ const coverImg = (b) =>
   `<img src="${escapeHTML(b.cover)}" alt="Cover of ${escapeHTML(b.title)}" loading="lazy" width="600" height="800">`;
 
 document.addEventListener("DOMContentLoaded", updateFavCount);
+/* Keep the favorites badge in sync (other tabs, back/forward cache) */
+window.addEventListener("storage", updateFavCount);
+window.addEventListener("pageshow", updateFavCount);
+/* Broken cover images fall back to the gradient background */
+document.addEventListener(
+  "error",
+  (e) => {
+    if (e.target.tagName === "IMG") e.target.classList.add("broken");
+  },
+  true,
+);
 
 /* ---------- Minimal ZIP reader (stored + deflate via DecompressionStream) ---------- */
 async function unzip(buffer) {
@@ -196,6 +207,8 @@ async function unzip(buffer) {
       const { method, data } = entries.get(key);
       if (method === 0) return utf8.decode(data);
       if (method !== 8) throw new Error("Unsupported zip compression");
+      if (typeof DecompressionStream === "undefined")
+        throw new Error("This browser is too old to open books");
       const stream = new Blob([data])
         .stream()
         .pipeThrough(new DecompressionStream("deflate-raw"));

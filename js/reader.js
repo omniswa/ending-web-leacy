@@ -11,8 +11,9 @@
 
   const root = document.documentElement;
   const textEl = $("#text");
-  const bookId = Number(new URLSearchParams(location.search).get("id"));
-  const restart = new URLSearchParams(location.search).get("restart") === "1";
+  const params = new URLSearchParams(location.search);
+  const bookId = Number(params.get("id"));
+  const restart = params.get("restart") === "1";
 
   let settings = { ...DEFAULTS, ...Store.get("settings", {}) };
   let book = null;
@@ -20,6 +21,8 @@
   let chapters = [];
   let current = 0;
   let saveTimer = 0;
+  let loading = false;
+  let lastTrigger = null;
 
   /* ---------- Static icons ---------- */
   $("#back").innerHTML = icon("left", 20);
@@ -77,27 +80,44 @@
 
   /* ---------- Panels ---------- */
   const scrim = $("#scrim");
+  const panelOpen = () => !!document.querySelector(".panel.open");
+
   function openPanel(id) {
-    closePanels();
+    closePanels(false);
+    lastTrigger = document.activeElement;
     $(id).classList.add("open");
     scrim.classList.add("show");
+    document.body.classList.add("panel-open");
     $(id).querySelector("button, [href]")?.focus();
+    document
+      .querySelectorAll("[aria-controls]")
+      .forEach((b) =>
+        b.setAttribute(
+          "aria-expanded",
+          String(b.getAttribute("aria-controls") === id.slice(1)),
+        ),
+      );
   }
-  function closePanels() {
+  function closePanels(restoreFocus = true) {
     document
       .querySelectorAll(".panel.open")
       .forEach((p) => p.classList.remove("open"));
     scrim.classList.remove("show");
+    document.body.classList.remove("panel-open");
+    document
+      .querySelectorAll("[aria-controls]")
+      .forEach((b) => b.setAttribute("aria-expanded", "false"));
+    if (restoreFocus) {
+      lastTrigger?.focus?.();
+      lastTrigger = null;
+    }
   }
   $("#btn-toc").addEventListener("click", () => openPanel("#toc"));
   $("#btn-settings").addEventListener("click", () => openPanel("#settings"));
   document
     .querySelectorAll("[data-close]")
-    .forEach((b) => b.addEventListener("click", closePanels));
-  scrim.addEventListener("click", closePanels);
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closePanels();
-  });
+    .forEach((b) => b.addEventListener("click", () => closePanels()));
+  scrim.addEventListener("click", () => closePanels());
 
   /* ---------- Full screen (Fullscreen API where available, immersive mode everywhere) ---------- */
   function setImmersive(on) {
@@ -120,7 +140,7 @@
   };
 
   function saveProgress() {
-    if (!book || !chapters.length) return;
+    if (loading || !book || !chapters.length) return;
     const scroll = scrollFraction();
     Progress.set(book.id, { chapter: current, scroll, total: chapters.length });
     $("#bar").style.width = `${((current + scroll) / chapters.length) * 100}%`;
@@ -135,15 +155,21 @@
     { passive: true },
   );
   window.addEventListener("pagehide", saveProgress);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") saveProgress();
+  });
 
   /* ---------- Chapters ---------- */
   async function showChapter(index, scroll = 0) {
+    loading = true;
+    clearTimeout(saveTimer);
     current = Math.min(Math.max(index, 0), chapters.length - 1);
     const ch = chapters[current];
     textEl.innerHTML = '<p class="r-state">Loading chapter…</p>';
     try {
       if (ch.text === undefined) ch.text = await zip.text(ch.file);
     } catch (err) {
+      loading = false;
       textEl.innerHTML = `<p class="r-state">Couldn’t load this chapter. ${escapeHTML(err.message)}</p>`;
       return;
     }
@@ -169,13 +195,21 @@
     requestAnimationFrame(() => {
       const max = document.documentElement.scrollHeight - innerHeight;
       scrollTo(0, scroll * Math.max(0, max));
+      loading = false;
       saveProgress();
     });
   }
 
-  $("#prev").addEventListener("click", () => showChapter(current - 1));
+  function go(delta) {
+    const target = current + delta;
+    if (loading || target < 0 || target >= chapters.length) return;
+    showChapter(target);
+  }
+
+  $("#prev").addEventListener("click", () => go(-1));
   $("#next").addEventListener("click", () => {
-    if (current < chapters.length - 1) return showChapter(current + 1);
+    if (loading) return;
+    if (current < chapters.length - 1) return go(1);
     if (Favs.has(book.id)) {
       Favs.setFinished(book.id, true);
       toast("Marked as finished");
@@ -184,8 +218,56 @@
   $("#toc-list").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
-    closePanels();
+    closePanels(false);
     showChapter(Number(btn.dataset.index));
+  });
+
+  /* ---------- Keyboard navigation ---------- */
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (panelOpen()) closePanels();
+      else if (document.body.classList.contains("immersive"))
+        setImmersive(false);
+      return;
+    }
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (panelOpen() || !chapters.length) return;
+    // Don't hijack arrows inside form controls (e.g. the font-size slider)
+    if (e.target.closest?.("input, select, textarea, [contenteditable]"))
+      return;
+    if (e.key === "ArrowRight") go(1);
+    else if (e.key === "ArrowLeft") go(-1);
+  });
+
+  /* ---------- Swipe navigation (horizontal swipe on the text) ---------- */
+  let touch = null;
+  textEl.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.touches.length !== 1) return (touch = null);
+      const t = e.touches[0];
+      touch = { x: t.clientX, y: t.clientY, time: Date.now() };
+    },
+    { passive: true },
+  );
+  textEl.addEventListener(
+    "touchend",
+    (e) => {
+      if (!touch || panelOpen()) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touch.x;
+      const dy = t.clientY - touch.y;
+      const fast = Date.now() - touch.time < 600;
+      touch = null;
+      if (!fast || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8)
+        return;
+      if (String(getSelection())) return; // user is selecting text
+      go(dx < 0 ? 1 : -1);
+    },
+    { passive: true },
+  );
+  textEl.addEventListener("touchcancel", () => (touch = null), {
+    passive: true,
   });
 
   /* ---------- Init ---------- */
@@ -226,6 +308,8 @@
           scroll: 0,
           total: chapters.length,
         });
+        // Drop ?restart=1 so a reload doesn't wipe progress again
+        history.replaceState(null, "", `reader.html?id=${book.id}`);
       }
       await showChapter(
         saved ? Math.min(saved.chapter, chapters.length - 1) : 0,

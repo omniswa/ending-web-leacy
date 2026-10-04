@@ -1,75 +1,168 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" data-theme="paper" data-font="serif" data-align="left">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#fbfbf8">
-  <title>Reader — Archive</title>
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body class="reader">
-  <header class="r-bar">
-    <a class="icon-btn" id="back" href="index.html" aria-label="Back to library"></a>
-    <div class="r-title"><strong id="book-title">Loading…</strong><span id="chapter-title"></span></div>
-    <button class="icon-btn" id="btn-toc" type="button" aria-label="Chapters" aria-controls="toc"></button>
-    <button class="icon-btn" id="btn-settings" type="button" aria-label="Reading settings" aria-controls="settings"></button>
-    <button class="icon-btn" id="btn-fs" type="button" aria-label="Full screen"></button>
-  </header>
-  <div class="r-progress" aria-hidden="true"><i id="bar"></i></div>
-
-  <button class="icon-btn" id="exit-fs" type="button" aria-label="Exit full screen"></button>
-
-  <main>
-    <article id="text" tabindex="-1" aria-live="polite"><p class="r-state">Opening book…</p></article>
-    <nav class="r-foot" aria-label="Chapter navigation">
-      <button class="btn" id="prev" type="button">Previous</button>
-      <span id="pos"></span>
-      <button class="btn btn-primary" id="next" type="button">Next</button>
-    </nav>
-  </main>
-
-  <div class="scrim" id="scrim"></div>
-
-  <aside class="panel" id="toc" aria-label="Chapters">
-    <header><h2>Chapters</h2><button class="icon-btn" type="button" data-close aria-label="Close"></button></header>
-    <ol class="toc" id="toc-list"></ol>
-  </aside>
-
-  <aside class="panel" id="settings" aria-label="Reading settings">
-    <header><h2>Reading settings</h2><button class="icon-btn" type="button" data-close aria-label="Close"></button></header>
-    <div class="group"><span>Font</span>
-      <div class="seg" data-key="font">
-        <button type="button" data-val="serif" style="font-family:var(--serif)">Serif</button>
-        <button type="button" data-val="sans" style="font-family:var(--sans)">Sans</button>
-        <button type="button" data-val="mono" style="font-family:var(--mono)">Mono</button>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#fbfbf8" />
+    <title>Reader — Archive</title>
+    <script>
+      /* Apply saved theme before first paint to avoid a white flash */
+      try {
+        const s = JSON.parse(localStorage.getItem("lib.settings")) || {};
+        for (const k of ["theme", "font", "align"])
+          if (s[k]) document.documentElement.dataset[k] = s[k];
+      } catch {}
+    </script>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body class="reader">
+    <header class="r-bar">
+      <a
+        class="icon-btn"
+        id="back"
+        href="index.html"
+        aria-label="Back to library"
+      ></a>
+      <div class="r-title">
+        <strong id="book-title">Loading…</strong
+        ><span id="chapter-title"></span>
       </div>
-    </div>
-    <div class="group"><span>Theme</span>
-      <div class="seg themes" data-key="theme">
-        <button type="button" data-val="paper">Paper</button>
-        <button type="button" data-val="sepia">Sepia</button>
-        <button type="button" data-val="dark">Dark</button>
-        <button type="button" data-val="oled">OLED</button>
-      </div>
-    </div>
-    <div class="group"><span>Font size</span>
-      <div class="size">
-        <input type="range" id="size" min="14" max="32" step="1" aria-label="Font size">
-        <output id="size-out" for="size"></output>
-      </div>
-    </div>
-    <div class="group"><span>Alignment</span>
-      <div class="seg" data-key="align">
-        <button type="button" data-val="left">Left</button>
-        <button type="button" data-val="justify">Justify</button>
-      </div>
-    </div>
-    <button class="btn" id="reset" type="button" style="width:100%"></button>
-  </aside>
+      <button
+        class="icon-btn"
+        id="btn-toc"
+        type="button"
+        aria-label="Chapters"
+        aria-controls="toc"
+        aria-expanded="false"
+      ></button>
+      <button
+        class="icon-btn"
+        id="btn-settings"
+        type="button"
+        aria-label="Reading settings"
+        aria-controls="settings"
+        aria-expanded="false"
+      ></button>
+      <button
+        class="icon-btn"
+        id="btn-fs"
+        type="button"
+        aria-label="Full screen"
+      ></button>
+      <div class="r-progress" aria-hidden="true"><i id="bar"></i></div>
+    </header>
 
-  <script src="js/app.js"></script>
-  <script src="js/reader.js"></script>
-</body>
+    <button
+      class="icon-btn"
+      id="exit-fs"
+      type="button"
+      aria-label="Exit full screen"
+    ></button>
+
+    <main>
+      <article id="text" tabindex="-1">
+        <p class="r-state">Opening book…</p>
+      </article>
+      <nav class="r-foot" aria-label="Chapter navigation">
+        <button class="btn" id="prev" type="button">Previous</button>
+        <span id="pos"></span>
+        <button class="btn btn-primary" id="next" type="button">Next</button>
+      </nav>
+    </main>
+
+    <div class="scrim" id="scrim"></div>
+
+    <aside class="panel" id="toc" aria-label="Chapters">
+      <header>
+        <h2>Chapters</h2>
+        <button
+          class="icon-btn"
+          type="button"
+          data-close
+          aria-label="Close"
+        ></button>
+      </header>
+      <ol class="toc" id="toc-list"></ol>
+    </aside>
+
+    <aside class="panel" id="settings" aria-label="Reading settings">
+      <header>
+        <h2>Reading settings</h2>
+        <button
+          class="icon-btn"
+          type="button"
+          data-close
+          aria-label="Close"
+        ></button>
+      </header>
+      <div class="group">
+        <span>Font</span>
+        <div class="seg" data-key="font">
+          <button
+            type="button"
+            data-val="serif"
+            style="font-family: var(--serif)"
+          >
+            Serif
+          </button>
+          <button
+            type="button"
+            data-val="sans"
+            style="font-family: var(--sans)"
+          >
+            Sans
+          </button>
+          <button
+            type="button"
+            data-val="mono"
+            style="font-family: var(--mono)"
+          >
+            Mono
+          </button>
+        </div>
+      </div>
+      <div class="group">
+        <span>Theme</span>
+        <div class="seg themes" data-key="theme">
+          <button type="button" data-val="paper">Paper</button>
+          <button type="button" data-val="sepia">Sepia</button>
+          <button type="button" data-val="dark">Dark</button>
+          <button type="button" data-val="oled">OLED</button>
+        </div>
+      </div>
+      <div class="group">
+        <span>Font size</span>
+        <div class="size">
+          <input
+            type="range"
+            id="size"
+            min="14"
+            max="32"
+            step="1"
+            aria-label="Font size"
+          />
+          <output id="size-out" for="size"></output>
+        </div>
+      </div>
+      <div class="group">
+        <span>Alignment</span>
+        <div class="seg" data-key="align">
+          <button type="button" data-val="left">Left</button>
+          <button type="button" data-val="justify">Justify</button>
+        </div>
+      </div>
+      <p class="hint">
+        Tip: use ← → keys or swipe left/right to change chapters.
+      </p>
+      <button class="btn" id="reset" type="button" style="width: 100%"></button>
+    </aside>
+
+    <script src="js/app.js"></script>
+    <script src="js/reader.js"></script>
+  </body>
 </html>
