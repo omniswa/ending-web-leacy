@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Archive — Browse the library</title>
+    <meta
+      name="description"
+      content="Browse, favorite and read books from the archive."
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html">Archive</a>
+      <nav aria-label="Main">
+        <a href="index.html" aria-current="page">Browse</a>
+        <a href="favorites.html"
+          >Favorites <span id="fav-count" hidden></span
+        ></a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <h1 class="page-title">Find your next read</h1>
+      <p class="page-sub">
+        A small library of long afternoons, quiet rooms and far coastlines. Open
+        anything, and pick up where you stopped.
+      </p>
+
+      <section id="recent-section" aria-labelledby="recent-title" hidden>
+        <h2 class="section-title" id="recent-title">Continue reading</h2>
+        <ul class="rail" id="recent"></ul>
+      </section>
+
+      <section aria-labelledby="all-title">
+        <h2 class="section-title" id="all-title">All books</h2>
+        <div class="toolbar">
+          <label class="field">
+            <span class="sr-only">Search by title or author</span>
+            <span id="search-icon"></span>
+            <input
+              type="search"
+              id="search"
+              placeholder="Search title or author"
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            <span class="sr-only">Sort books</span>
+            <select id="sort">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="title-asc">Title A–Z</option>
+              <option value="title-desc">Title Z–A</option>
+              <option value="author-asc">Author A–Z</option>
+              <option value="author-desc">Author Z–A</option>
+            </select>
+          </label>
+        </div>
+        <p id="status" class="page-sub" role="status"></p>
+        <ul class="grid" id="grid"></ul>
+      </section>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script src="js/home.js"></script>
+  </body>
+</html>

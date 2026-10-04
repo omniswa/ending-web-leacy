@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Archive — Favorites</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Archive</a>
+    <nav aria-label="Main">
+      <a href="index.html">Browse</a>
+      <a href="favorites.html" aria-current="page">Favorites <span id="fav-count" hidden></span></a>
+    </nav>
+  </header>
+
+  <main class="page">
+    <h1 class="page-title">Your favorites</h1>
+    <p class="page-sub" id="summary"></p>
+    <div class="tabs" role="group" aria-label="Filter favorites">
+      <button type="button" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" data-filter="reading" aria-pressed="false">Reading</button>
+      <button type="button" data-filter="finished" aria-pressed="false">Finished</button>
+    </div>
+    <ul class="fav-list" id="list"></ul>
+    <div class="empty" id="empty" hidden></div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script src="js/favorites.js"></script>
+</body>
+</html>
