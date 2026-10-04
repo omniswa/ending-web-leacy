@@ -52,7 +52,10 @@ const Store = {
 const Favs = {
   all: () => Store.get("favs", {}),
   has: (id) => String(id) in Favs.all(),
-  isFinished: (id) => !!Favs.all()[id]?.finished,
+  /* FIX: "finished" now also lives in Progress, so books that were never
+     favorited can be finished too (and stop showing in "Continue reading"). */
+  isFinished: (id) =>
+    !!(Favs.all()[id]?.finished || Progress.all()[id]?.finished),
   toggle(id) {
     const favs = Favs.all();
     if (id in favs) delete favs[id];
@@ -67,6 +70,15 @@ const Favs = {
       favs[id].finished = finished;
       Store.set("favs", favs);
     }
+    const all = Progress.all();
+    if (finished) {
+      all[id] = { ...all[id], finished: true, updated: Date.now() };
+    } else if (all[id]) {
+      delete all[id].finished;
+      // An entry that was created only by "mark finished" carries no reading data
+      if (all[id].total === undefined) delete all[id];
+    }
+    Store.set("progress", all);
   },
 };
 
@@ -88,7 +100,7 @@ const Progress = {
   recent(books) {
     const all = Progress.all();
     return books
-      .filter((b) => all[b.id] && !Favs.isFinished(b.id))
+      .filter((b) => all[b.id]?.total && !Favs.isFinished(b.id))
       .sort((a, b) => all[b.id].updated - all[a.id].updated);
   },
 };

@@ -8,6 +8,20 @@
     dark: "#1c2027",
     oled: "#000000",
   };
+  /* FIX: validate saved settings so corrupted storage can't break the theme */
+  const VALID = {
+    font: ["serif", "sans", "mono"],
+    theme: Object.keys(THEME_COLORS),
+    align: ["left", "justify"],
+  };
+  function cleanSettings(s) {
+    const out = { ...DEFAULTS, ...s };
+    for (const k of Object.keys(VALID))
+      if (!VALID[k].includes(out[k])) out[k] = DEFAULTS[k];
+    const size = Number(out.size);
+    out.size = size >= 14 && size <= 32 ? size : DEFAULTS.size;
+    return out;
+  }
 
   const root = document.documentElement;
   const textEl = $("#text");
@@ -15,13 +29,14 @@
   const bookId = Number(params.get("id"));
   const restart = params.get("restart") === "1";
 
-  let settings = { ...DEFAULTS, ...Store.get("settings", {}) };
+  let settings = cleanSettings(Store.get("settings", {}));
   let book = null;
   let zip = null;
   let chapters = [];
   let current = 0;
   let saveTimer = 0;
   let loading = false;
+  let loadId = 0; // FIX: guards against overlapping chapter loads
   let lastTrigger = null;
 
   /* ---------- Static icons ---------- */
@@ -34,6 +49,14 @@
   document
     .querySelectorAll("[data-close]")
     .forEach((b) => (b.innerHTML = icon("x", 20)));
+
+  /* FIX: "Back" returns to the exact library page/sort the reader came from */
+  $("#back").addEventListener("click", (e) => {
+    if (history.length > 1 && document.referrer.startsWith(location.origin)) {
+      e.preventDefault();
+      history.back();
+    }
+  });
 
   /* ---------- Settings ---------- */
   function applySettings(save = true) {
@@ -119,7 +142,7 @@
     .forEach((b) => b.addEventListener("click", () => closePanels()));
   scrim.addEventListener("click", () => closePanels());
 
-  /* ---------- Full screen (Fullscreen API where available, immersive mode everywhere) ---------- */
+  /* ---------- Full screen ---------- */
   function setImmersive(on) {
     document.body.classList.toggle("immersive", on);
     if (on) root.requestFullscreen?.().catch(() => {});
@@ -160,26 +183,33 @@
   });
 
   /* ---------- Chapters ---------- */
+  const chapterTitle = (ch, i) => ch.title || `Chapter ${i + 1}`;
+
   async function showChapter(index, scroll = 0) {
+    const target = Math.min(Math.max(index, 0), chapters.length - 1);
+    const myLoad = ++loadId;
     loading = true;
     clearTimeout(saveTimer);
-    current = Math.min(Math.max(index, 0), chapters.length - 1);
-    const ch = chapters[current];
+    const ch = chapters[target];
     textEl.innerHTML = '<p class="r-state">Loading chapter…</p>';
     try {
       if (ch.text === undefined) ch.text = await zip.text(ch.file);
     } catch (err) {
+      if (myLoad !== loadId) return; // a newer load took over
       loading = false;
       textEl.innerHTML = `<p class="r-state">Couldn’t load this chapter. ${escapeHTML(err.message)}</p>`;
       return;
     }
+    if (myLoad !== loadId) return; // FIX: stale load, ignore
+    current = target;
     const paragraphs = ch.text
       .trim()
       .split(/\n\s*\n/)
       .map((p) => `<p>${escapeHTML(p.trim())}</p>`)
       .join("");
-    textEl.innerHTML = `<h1>${escapeHTML(ch.title)}</h1>${paragraphs}`;
-    $("#chapter-title").textContent = ch.title;
+    const title = chapterTitle(ch, current);
+    textEl.innerHTML = `<h1>${escapeHTML(title)}</h1>${paragraphs}`;
+    $("#chapter-title").textContent = title;
     $("#pos").textContent = `Chapter ${current + 1} of ${chapters.length}`;
     $("#prev").disabled = current === 0;
     $("#next").textContent =
@@ -193,6 +223,7 @@
       );
 
     requestAnimationFrame(() => {
+      if (myLoad !== loadId) return;
       const max = document.documentElement.scrollHeight - innerHeight;
       scrollTo(0, scroll * Math.max(0, max));
       loading = false;
@@ -210,16 +241,16 @@
   $("#next").addEventListener("click", () => {
     if (loading) return;
     if (current < chapters.length - 1) return go(1);
-    if (Favs.has(book.id)) {
-      Favs.setFinished(book.id, true);
-      toast("Marked as finished");
-    } else toast("You’ve reached the end");
+    /* FIX: finishing works for every book, not only favorited ones */
+    Favs.setFinished(book.id, true);
+    toast("Marked as finished");
   });
   $("#toc-list").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
     closePanels(false);
     showChapter(Number(btn.dataset.index));
+    textEl.focus({ preventScroll: true }); // focus would otherwise be lost
   });
 
   /* ---------- Keyboard navigation ---------- */
@@ -232,14 +263,13 @@
     }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     if (panelOpen() || !chapters.length) return;
-    // Don't hijack arrows inside form controls (e.g. the font-size slider)
     if (e.target.closest?.("input, select, textarea, [contenteditable]"))
       return;
     if (e.key === "ArrowRight") go(1);
     else if (e.key === "ArrowLeft") go(-1);
   });
 
-  /* ---------- Swipe navigation (horizontal swipe on the text) ---------- */
+  /* ---------- Swipe navigation ---------- */
   let touch = null;
   textEl.addEventListener(
     "touchstart",
@@ -261,7 +291,7 @@
       touch = null;
       if (!fast || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8)
         return;
-      if (String(getSelection())) return; // user is selecting text
+      if (String(getSelection())) return;
       go(dx < 0 ? 1 : -1);
     },
     { passive: true },
@@ -296,7 +326,7 @@
       $("#toc-list").innerHTML = chapters
         .map(
           (c, i) =>
-            `<li><button type="button" data-index="${i}"><em>${i + 1}</em>${escapeHTML(c.title)}</button></li>`,
+            `<li><button type="button" data-index="${i}"><em>${i + 1}</em>${escapeHTML(chapterTitle(c, i))}</button></li>`,
         )
         .join("");
 
@@ -308,12 +338,11 @@
           scroll: 0,
           total: chapters.length,
         });
-        // Drop ?restart=1 so a reload doesn't wipe progress again
         history.replaceState(null, "", `reader.html?id=${book.id}`);
       }
       await showChapter(
-        saved ? Math.min(saved.chapter, chapters.length - 1) : 0,
-        saved?.scroll ?? 0,
+        saved?.total ? Math.min(saved.chapter, chapters.length - 1) : 0,
+        saved?.total ? saved.scroll : 0,
       );
     } catch (err) {
       fail(err.message || "The book could not be opened.");
