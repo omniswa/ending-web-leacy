@@ -357,6 +357,10 @@ function decorateNav() {
     a.prepend(ico);
   });
 }
+document.addEventListener("DOMContentLoaded", () => {
+  const y = $("#year");
+  if (y) y.textContent = new Date().getFullYear();
+});
 document.addEventListener("DOMContentLoaded", decorateNav);
 document.addEventListener("DOMContentLoaded", updateStreakChip);
 window.addEventListener("storage", updateStreakChip);
