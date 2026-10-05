@@ -1,5 +1,5 @@
 /* =========================================================
-   Archive — single stylesheet (library, favorites, reader, PWA, streaks)
+   3NDING — single stylesheet (library, favorites, reader, PWA, streaks)
    Fonts are loaded from Google Fonts in each page's <head>:
    Literata (serif), Inter (sans), JetBrains Mono (mono).
    The stacks below fall back to good system fonts if offline.
@@ -976,6 +976,7 @@ body.is-offline .fav-card:not(.saved) {
 /* ---------- Reader ---------- */
 body.reader {
   --fs: 18px;
+  --measure: 40rem;
   transition:
     background 0.25s,
     color 0.25s;
@@ -1034,10 +1035,11 @@ body.reader {
   height: 100%;
   width: 0;
   background: var(--accent);
+  transition: width 0.15s linear;
 }
 
 #text {
-  max-width: 40rem;
+  max-width: var(--measure);
   margin: 0 auto;
   padding: 48px max(22px, env(safe-area-inset-right)) 40px
     max(22px, env(safe-area-inset-left));
@@ -1057,6 +1059,18 @@ html[data-font="mono"] #text {
   line-height: 1.7;
   font-size: calc(var(--fs) * 0.88);
 }
+html[data-spacing="compact"] #text {
+  line-height: 1.55;
+}
+html[data-spacing="relaxed"] #text {
+  line-height: 1.95;
+}
+html[data-width="narrow"] body.reader {
+  --measure: 32rem;
+}
+html[data-width="wide"] body.reader {
+  --measure: 52rem;
+}
 html[data-align="justify"] #text p {
   text-align: justify;
   hyphens: auto;
@@ -1068,13 +1082,21 @@ html[data-align="justify"] #text p {
   text-align: left;
   overflow-wrap: anywhere;
 }
+#text .r-eyebrow {
+  margin: 0 0 0.6em;
+  font: 700 0.72rem/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: normal;
+}
 #text p {
   margin: 0 0 1.1em;
   white-space: pre-line;
   overflow-wrap: break-word;
 }
 .r-state {
-  max-width: 40rem;
+  max-width: var(--measure);
   margin: 20vh auto;
   padding: 0 22px;
   text-align: center;
@@ -1086,7 +1108,7 @@ html[data-align="justify"] #text p {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  max-width: 40rem;
+  max-width: var(--measure);
   margin: 0 auto;
   padding: 0 max(22px, env(safe-area-inset-right))
     calc(48px + env(safe-area-inset-bottom))
@@ -1096,10 +1118,14 @@ html[data-align="justify"] #text p {
   flex: 1;
   color: var(--muted);
   font-size: 0.85rem;
+  line-height: 1.35;
   text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-wrap: balance;
 }
 .r-foot .btn {
   min-width: 104px;
+  white-space: nowrap;
 }
 .r-foot .btn:disabled {
   opacity: 0.35;

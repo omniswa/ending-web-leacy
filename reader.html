@@ -1,5 +1,12 @@
 <!doctype html>
-<html lang="en" data-theme="paper" data-font="serif" data-align="left">
+<html
+  lang="en"
+  data-theme="paper"
+  data-font="serif"
+  data-align="left"
+  data-spacing="normal"
+  data-width="normal"
+>
   <head>
     <meta charset="utf-8" />
     <meta
@@ -8,9 +15,9 @@
     />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Archive" />
+    <meta name="apple-mobile-web-app-title" content="3NDING" />
     <meta name="theme-color" content="#fbfbf8" />
-    <title>Reader — Archive</title>
+    <title>Reader — 3NDING</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -34,7 +41,7 @@
       /* Apply saved theme before first paint to avoid a white flash */
       try {
         const s = JSON.parse(localStorage.getItem("lib.settings")) || {};
-        for (const k of ["theme", "font", "align"])
+        for (const k of ["theme", "font", "align", "spacing", "width"])
           if (s[k]) document.documentElement.dataset[k] = s[k];
       } catch {}
     </script>
@@ -176,8 +183,25 @@
           <button type="button" data-val="justify">Justify</button>
         </div>
       </div>
+      <div class="group">
+        <span>Line spacing</span>
+        <div class="seg" data-key="spacing">
+          <button type="button" data-val="compact">Compact</button>
+          <button type="button" data-val="normal">Normal</button>
+          <button type="button" data-val="relaxed">Relaxed</button>
+        </div>
+      </div>
+      <div class="group">
+        <span>Text width</span>
+        <div class="seg" data-key="width">
+          <button type="button" data-val="narrow">Narrow</button>
+          <button type="button" data-val="normal">Normal</button>
+          <button type="button" data-val="wide">Wide</button>
+        </div>
+      </div>
       <p class="hint">
-        Tip: use ← → keys or swipe left/right to change chapters.
+        Tip: use ← → keys or swipe left/right to change chapters. Esc closes
+        panels.
       </p>
       <button class="btn" id="reset" type="button" style="width: 100%"></button>
     </aside>

@@ -75,9 +75,15 @@ const Favs = {
     }
     const all = Progress.all();
     if (finished) {
-      all[id] = { ...all[id], finished: true, updated: Date.now() };
+      all[id] = {
+        ...all[id],
+        finished: true,
+        finishedAt: Date.now(),
+        updated: Date.now(),
+      };
     } else if (all[id]) {
       delete all[id].finished;
+      delete all[id].finishedAt;
       // An entry that was created only by "mark finished" carries no reading data
       if (all[id].total === undefined) delete all[id];
     }
@@ -306,7 +312,8 @@ const Streak = {
 function finishedThisWeek() {
   const since = Date.now() - 7 * 864e5;
   return Object.values(Progress.all()).filter(
-    (p) => p.finished && p.updated >= since,
+    // finishedAt: later scrolling in a finished book must not renew "this week"
+    (p) => p.finished && (p.finishedAt ?? p.updated) >= since,
   ).length;
 }
 
@@ -360,7 +367,7 @@ window.addEventListener("pageshow", updateStreakChip);
    and also fills it whenever you open a book while online. The cache name
    is NOT versioned so shipping a new site version never deletes books. */
 const Offline = {
-  CACHE: "archive-books",
+  CACHE: "3nding-books",
   supported:
     "caches" in window &&
     "serviceWorker" in navigator &&
@@ -528,7 +535,7 @@ window.addEventListener("appinstalled", () => {
   Install.event = null;
   Install.standalone = true;
   document.dispatchEvent(new Event("installchange"));
-  toast("Archive installed");
+  toast("3NDING installed");
 });
 
 if (
@@ -595,7 +602,7 @@ async function unzip(buffer) {
       const key = [...entries.keys()].find(
         (k) => k === name || k.endsWith("/" + name),
       );
-      if (!key) throw new Error(`"${name}" not found in archive`);
+      if (!key) throw new Error(`"${name}" not found in this book file`);
       const { method, data } = entries.get(key);
       if (method === 0) return utf8.decode(data);
       if (method !== 8) throw new Error("Unsupported zip compression");
