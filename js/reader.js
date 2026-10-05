@@ -47,9 +47,7 @@
   let loading = false;
   let loadId = 0; // FIX: guards against overlapping chapter loads
   let lastTrigger = null;
-  let words = 0; // word count of the open chapter, for "min left"
   let finishedNow = false; // the Finish button has been pressed on the last chapter
-  const WPM = 230;
 
   /* ---------- Static icons ---------- */
   $("#back").innerHTML = icon("left", 20);
@@ -176,15 +174,11 @@
     return max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 1;
   };
 
-  /* Top bar + footer text follow the scroll position live */
+  /* The top progress bar follows the scroll position live */
   function paintProgress() {
     if (loading || !book || !chapters.length) return;
     const scroll = scrollFraction();
     $("#bar").style.width = `${((current + scroll) / chapters.length) * 100}%`;
-    const left = Math.ceil((words * (1 - scroll)) / WPM);
-    $("#pos").textContent =
-      `Chapter ${current + 1} of ${chapters.length} · ` +
-      (left > 0 ? `${left} min left` : "End of chapter");
   }
 
   function saveProgress() {
@@ -253,7 +247,6 @@
     const eyebrow = ch.title
       ? `<p class="r-eyebrow">Chapter ${current + 1}</p>`
       : "";
-    words = ch.text.split(/\s+/).filter(Boolean).length;
     textEl.innerHTML = `${eyebrow}<h1>${escapeHTML(title)}</h1>${paragraphs}`;
     $("#chapter-title").textContent = title;
     $("#pos").textContent = `Chapter ${current + 1} of ${chapters.length}`;
@@ -380,7 +373,7 @@
     passive: true,
   });
 
-  /* ---------- Phones: the top bar tucks away while you read ----------
+  /* ---------- Phones: the top bar and bottom nav tuck away while you read ----------
      Scrolling down hides it, scrolling up (or tapping the text) brings it back.
      style.css only applies the hiding at phone widths. */
   const phone = matchMedia("(max-width: 560px)");
@@ -393,7 +386,9 @@
       barTick = true;
       requestAnimationFrame(() => {
         const y = scrollY;
-        if (y < 80) document.body.classList.remove("bar-hidden");
+        // Near the top or the end of the chapter, the bars stay visible
+        const atEnd = y + innerHeight >= document.documentElement.scrollHeight - 160;
+        if (y < 80 || atEnd) document.body.classList.remove("bar-hidden");
         else if (Math.abs(y - lastY) > 8 && !panelOpen())
           document.body.classList.toggle("bar-hidden", y > lastY);
         lastY = y;

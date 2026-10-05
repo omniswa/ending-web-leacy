@@ -1041,8 +1041,8 @@ body.reader {
 #text {
   max-width: var(--measure);
   margin: 0 auto;
-  padding: 48px max(22px, env(safe-area-inset-right)) 40px
-    max(22px, env(safe-area-inset-left));
+  padding: 48px max(22px, env(safe-area-inset-right))
+    calc(110px + env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
   font-size: var(--fs);
   line-height: 1.75;
   outline: none;
@@ -1103,16 +1103,25 @@ html[data-align="justify"] #text p {
   color: var(--muted);
 }
 
+/* Chapter navigation: a fixed bar that tucks away with the header on phones */
 .r-foot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 18;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  max-width: var(--measure);
-  margin: 0 auto;
-  padding: 0 max(22px, env(safe-area-inset-right))
-    calc(48px + env(safe-area-inset-bottom))
-    max(22px, env(safe-area-inset-left));
+  padding: 10px
+    max(22px, calc((100% - var(--measure)) / 2), env(safe-area-inset-right))
+    calc(10px + env(safe-area-inset-bottom))
+    max(22px, calc((100% - var(--measure)) / 2), env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
 }
 .r-foot span {
   flex: 1;
@@ -1626,8 +1635,14 @@ body.immersive #text {
   .r-bar {
     transition: transform 0.25s;
   }
+  .r-foot {
+    transition: transform 0.25s;
+  }
   body.bar-hidden .r-bar:not(:focus-within) {
     transform: translateY(-100%);
+  }
+  body.bar-hidden .r-foot:not(:focus-within) {
+    transform: translateY(100%);
   }
   #text {
     padding-top: 28px;
