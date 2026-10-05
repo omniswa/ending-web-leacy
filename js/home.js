@@ -40,20 +40,23 @@
     const href = `reader.html?id=${b.id}${done ? "&restart=1" : ""}`;
     const label = done ? "Read again" : pct ? "Continue" : "Open";
     return `
-      <li class="card" data-id="${b.id}">
-        <a class="cover" href="${href}" tabindex="-1" aria-hidden="true">
-          ${coverImg(b)}
-          ${pct ? `<div class="progress" style="--p:${pct}%"><i></i></div>` : ""}
-        </a>
+      <li class="card${Offline.has(b.zip) ? " saved" : ""}" data-id="${b.id}">
+        <div class="cover-wrap">
+          <a class="cover" href="${href}" tabindex="-1" aria-hidden="true">
+            ${coverImg(b)}
+            ${pct ? `<div class="progress" style="--p:${pct}%"><i></i></div>` : ""}
+          </a>
+          <button class="chip chip-fav ${fav ? "on" : ""}" type="button" data-action="fav" aria-pressed="${fav}"
+            aria-label="${fav ? "Remove from favorites" : "Add to favorites"}: ${escapeHTML(b.title)}">${icon("heart")}</button>
+          ${Offline.btn(b, "chip chip-off")}
+        </div>
         <div>
           <h3 title="${escapeHTML(b.title)}">${escapeHTML(b.title)}</h3>
           <p class="meta">${escapeHTML(b.author)}</p>
         </div>
         <div class="actions">
           <a class="btn btn-primary" href="${href}">${icon("book", 16)}${label}</a>
-          <button class="icon-btn ${fav ? "on" : ""}" data-action="fav" aria-pressed="${fav}"
-            aria-label="${fav ? "Remove from favorites" : "Add to favorites"}: ${escapeHTML(b.title)}">${icon("heart")}</button>
-          <button class="icon-btn" data-action="share" aria-label="Share ${escapeHTML(b.title)}">${icon("share")}</button>
+          <button class="icon-btn" type="button" data-action="share" aria-label="Share ${escapeHTML(b.title)}">${icon("share")}</button>
         </div>
       </li>`;
   };

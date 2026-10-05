@@ -1,7 +1,7 @@
 "use strict";
 
 (() => {
-  const DEFAULTS = { font: "serif", theme: "paper", size: 19, align: "left" };
+  const DEFAULTS = { font: "serif", theme: "paper", size: 18, align: "left" };
   const THEME_COLORS = {
     paper: "#fbfbf8",
     sepia: "#f0e4cb",
@@ -226,6 +226,7 @@
       if (myLoad !== loadId) return;
       const max = document.documentElement.scrollHeight - innerHeight;
       scrollTo(0, scroll * Math.max(0, max));
+      lastY = scrollY; // restoring your place must not hide the bar
       loading = false;
       saveProgress();
     });
@@ -300,6 +301,64 @@
     passive: true,
   });
 
+  /* ---------- Phones: the top bar tucks away while you read ----------
+     Scrolling down hides it, scrolling up (or tapping the text) brings it back.
+     style.css only applies the hiding at phone widths. */
+  const phone = matchMedia("(max-width: 560px)");
+  let lastY = scrollY;
+  let barTick = false;
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (barTick || !phone.matches || loading) return;
+      barTick = true;
+      requestAnimationFrame(() => {
+        const y = scrollY;
+        if (y < 80) document.body.classList.remove("bar-hidden");
+        else if (Math.abs(y - lastY) > 8 && !panelOpen())
+          document.body.classList.toggle("bar-hidden", y > lastY);
+        lastY = y;
+        barTick = false;
+      });
+    },
+    { passive: true },
+  );
+  textEl.addEventListener("click", (e) => {
+    if (!phone.matches || String(getSelection()) || e.target.closest("a")) return;
+    document.body.classList.toggle("bar-hidden");
+  });
+
+  /* ---------- Reading time → daily streak ----------
+     Counts a second only while the page is visible and you've scrolled,
+     tapped or pressed a key in the last minute, so a book left open
+     overnight doesn't earn a streak. */
+  const IDLE_MS = 60000;
+  let lastActive = Date.now();
+  let pendingSeconds = 0;
+  const bump = () => (lastActive = Date.now());
+  ["scroll", "wheel", "pointerdown", "touchstart", "keydown"].forEach((ev) =>
+    addEventListener(ev, bump, { passive: true }),
+  );
+
+  function flushReadingTime() {
+    if (!pendingSeconds) return;
+    const seconds = pendingSeconds;
+    pendingSeconds = 0;
+    if (Streak.add(seconds)) {
+      const n = Streak.current();
+      toast(`Daily goal reached — ${n}-day streak`);
+    }
+  }
+  setInterval(() => {
+    if (document.visibilityState !== "visible" || loading || !book) return;
+    if (Date.now() - lastActive > IDLE_MS) return;
+    if (++pendingSeconds >= 15) flushReadingTime();
+  }, 1000);
+  window.addEventListener("pagehide", flushReadingTime);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushReadingTime();
+  });
+
   /* ---------- Init ---------- */
   function fail(message) {
     $("#book-title").textContent = "Something went wrong";
@@ -344,6 +403,8 @@
         saved?.total ? Math.min(saved.chapter, chapters.length - 1) : 0,
         saved?.total ? saved.scroll : 0,
       );
+      // Ask the browser not to evict downloaded books and progress when space is tight
+      navigator.storage?.persist?.().catch?.(() => {});
     } catch (err) {
       fail(err.message || "The book could not be opened.");
     }
