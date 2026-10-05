@@ -982,6 +982,7 @@ body.reader {
   transition:
     background 0.25s,
     color 0.25s;
+  touch-action: manipulation;
 }
 .r-bar {
   position: sticky;
@@ -1129,7 +1130,7 @@ html[data-align="justify"] #text p {
 .r-foot span {
   flex: 1;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   line-height: 1.35;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -1715,16 +1716,15 @@ body:has(.site-footer) main.page {
   #btn-fs {
     display: none;
   }
-  .r-bar {
-    transition: transform 0.25s;
-  }
+  .r-bar,
   .r-foot {
     transition: transform 0.25s;
   }
-  body.bar-hidden .r-bar:not(:focus-within) {
+  /* :has(:focus-visible) = keyboard focus only, so a tapped button can't pin the bar open */
+  body.bar-hidden .r-bar:not(:has(:focus-visible)) {
     transform: translateY(-100%);
   }
-  body.bar-hidden .r-foot:not(:focus-within) {
+  body.bar-hidden .r-foot:not(:has(:focus-visible)) {
     transform: translateY(100%);
   }
   #text {

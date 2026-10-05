@@ -317,16 +317,6 @@ function finishedThisWeek() {
   ).length;
 }
 
-/** Books marked finished, whether or not they are favorites. */
-function finishedCount() {
-  const ids = new Set();
-  const favs = Favs.all();
-  const prog = Progress.all();
-  for (const id in favs) if (favs[id].finished) ids.add(id);
-  for (const id in prog) if (prog[id].finished) ids.add(id);
-  return ids.size;
-}
-
 /* Flame chip in the site header (library pages only) */
 function updateStreakChip() {
   const nav = $(".site-header nav");

@@ -266,7 +266,6 @@
       if (myLoad !== loadId) return;
       const max = document.documentElement.scrollHeight - innerHeight;
       scrollTo(0, scroll * Math.max(0, max));
-      lastY = scrollY; // restoring your place must not hide the bar
       loading = false;
       saveProgress();
     });
@@ -321,7 +320,9 @@
     if (e.key === "Tab" && panelOpen()) {
       // keep keyboard focus inside the open panel
       const items = [
-        ...document.querySelector(".panel.open").querySelectorAll("button, input, [href]"),
+        ...document
+          .querySelector(".panel.open")
+          .querySelectorAll("button, input, [href]"),
       ].filter((el) => !el.disabled);
       const first = items[0];
       const last = items[items.length - 1];
@@ -373,32 +374,17 @@
     passive: true,
   });
 
-  /* ---------- Phones: the top bar and bottom nav tuck away while you read ----------
-     Scrolling down hides it, scrolling up (or tapping the text) brings it back.
-     style.css only applies the hiding at phone widths. */
-  const phone = matchMedia("(max-width: 560px)");
-  let lastY = scrollY;
-  let barTick = false;
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (barTick || !phone.matches || loading) return;
-      barTick = true;
-      requestAnimationFrame(() => {
-        const y = scrollY;
-        // Near the top or the end of the chapter, the bars stay visible
-        const atEnd = y + innerHeight >= document.documentElement.scrollHeight - 160;
-        if (y < 80 || atEnd) document.body.classList.remove("bar-hidden");
-        else if (Math.abs(y - lastY) > 8 && !panelOpen())
-          document.body.classList.toggle("bar-hidden", y > lastY);
-        lastY = y;
-        barTick = false;
-      });
-    },
-    { passive: true },
-  );
-  textEl.addEventListener("click", (e) => {
-    if (!phone.matches || String(getSelection()) || e.target.closest("a, button")) return;
+  /* ---------- Touch devices: tap the page to hide or show the bars ---------- */
+  const touchUI = matchMedia("(max-width: 560px), (pointer: coarse)");
+  document.addEventListener("click", (e) => {
+    if (!touchUI.matches || panelOpen()) return;
+    if (String(getSelection())) return; // finishing a text selection, not a tap
+    if (
+      e.target.closest(
+        ".r-bar, .r-foot, .panel, .scrim, #exit-fs, a, button, input, select, label",
+      )
+    )
+      return;
     document.body.classList.toggle("bar-hidden");
   });
 
