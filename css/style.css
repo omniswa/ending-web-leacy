@@ -1,5 +1,5 @@
 /* =========================================================
-   Archive — single stylesheet (library, favorites, reader, PWA, streaks)
+   3NDING — single stylesheet (library, favorites, reader, PWA, streaks)
    Fonts are loaded from Google Fonts in each page's <head>:
    Literata (serif), Inter (sans), JetBrains Mono (mono).
    The stacks below fall back to good system fonts if offline.
@@ -976,6 +976,7 @@ body.is-offline .fav-card:not(.saved) {
 /* ---------- Reader ---------- */
 body.reader {
   --fs: 18px;
+  --measure: 40rem;
   transition:
     background 0.25s,
     color 0.25s;
@@ -1034,13 +1035,14 @@ body.reader {
   height: 100%;
   width: 0;
   background: var(--accent);
+  transition: width 0.15s linear;
 }
 
 #text {
-  max-width: 40rem;
+  max-width: var(--measure);
   margin: 0 auto;
-  padding: 48px max(22px, env(safe-area-inset-right)) 40px
-    max(22px, env(safe-area-inset-left));
+  padding: 48px max(22px, env(safe-area-inset-right))
+    calc(110px + env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
   font-size: var(--fs);
   line-height: 1.75;
   outline: none;
@@ -1057,6 +1059,18 @@ html[data-font="mono"] #text {
   line-height: 1.7;
   font-size: calc(var(--fs) * 0.88);
 }
+html[data-spacing="compact"] #text {
+  line-height: 1.55;
+}
+html[data-spacing="relaxed"] #text {
+  line-height: 1.95;
+}
+html[data-width="narrow"] body.reader {
+  --measure: 32rem;
+}
+html[data-width="wide"] body.reader {
+  --measure: 52rem;
+}
 html[data-align="justify"] #text p {
   text-align: justify;
   hyphens: auto;
@@ -1068,38 +1082,59 @@ html[data-align="justify"] #text p {
   text-align: left;
   overflow-wrap: anywhere;
 }
+#text .r-eyebrow {
+  margin: 0 0 0.6em;
+  font: 700 0.72rem/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: normal;
+}
 #text p {
   margin: 0 0 1.1em;
   white-space: pre-line;
   overflow-wrap: break-word;
 }
 .r-state {
-  max-width: 40rem;
+  max-width: var(--measure);
   margin: 20vh auto;
   padding: 0 22px;
   text-align: center;
   color: var(--muted);
 }
 
+/* Chapter navigation: a fixed bar that tucks away with the header on phones */
 .r-foot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 18;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 0 max(22px, env(safe-area-inset-right))
-    calc(48px + env(safe-area-inset-bottom))
-    max(22px, env(safe-area-inset-left));
+  padding: 10px
+    max(22px, calc((100% - var(--measure)) / 2), env(safe-area-inset-right))
+    calc(10px + env(safe-area-inset-bottom))
+    max(22px, calc((100% - var(--measure)) / 2), env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
 }
 .r-foot span {
   flex: 1;
   color: var(--muted);
   font-size: 0.85rem;
+  line-height: 1.35;
   text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-wrap: balance;
 }
 .r-foot .btn {
   min-width: 104px;
+  white-space: nowrap;
 }
 .r-foot .btn:disabled {
   opacity: 0.35;
@@ -1600,8 +1635,14 @@ body.immersive #text {
   .r-bar {
     transition: transform 0.25s;
   }
+  .r-foot {
+    transition: transform 0.25s;
+  }
   body.bar-hidden .r-bar:not(:focus-within) {
     transform: translateY(-100%);
+  }
+  body.bar-hidden .r-foot:not(:focus-within) {
+    transform: translateY(100%);
   }
   #text {
     padding-top: 28px;

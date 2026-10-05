@@ -1,7 +1,14 @@
 "use strict";
 
 (() => {
-  const DEFAULTS = { font: "serif", theme: "paper", size: 18, align: "left" };
+  const DEFAULTS = {
+    font: "serif",
+    theme: "paper",
+    size: 18,
+    align: "left",
+    spacing: "normal",
+    width: "normal",
+  };
   const THEME_COLORS = {
     paper: "#fbfbf8",
     sepia: "#f0e4cb",
@@ -13,6 +20,8 @@
     font: ["serif", "sans", "mono"],
     theme: Object.keys(THEME_COLORS),
     align: ["left", "justify"],
+    spacing: ["compact", "normal", "relaxed"],
+    width: ["narrow", "normal", "wide"],
   };
   function cleanSettings(s) {
     const out = { ...DEFAULTS, ...s };
@@ -38,6 +47,7 @@
   let loading = false;
   let loadId = 0; // FIX: guards against overlapping chapter loads
   let lastTrigger = null;
+  let finishedNow = false; // the Finish button has been pressed on the last chapter
 
   /* ---------- Static icons ---------- */
   $("#back").innerHTML = icon("left", 20);
@@ -63,6 +73,8 @@
     root.dataset.theme = settings.theme;
     root.dataset.font = settings.font;
     root.dataset.align = settings.align;
+    root.dataset.spacing = settings.spacing;
+    root.dataset.width = settings.width;
     document.body.style.setProperty("--fs", `${settings.size}px`);
     $('meta[name="theme-color"]').content = THEME_COLORS[settings.theme];
     $("#size").value = settings.size;
@@ -162,12 +174,36 @@
     return max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 1;
   };
 
-  function saveProgress() {
+  /* The top progress bar follows the scroll position live */
+  function paintProgress() {
     if (loading || !book || !chapters.length) return;
     const scroll = scrollFraction();
-    Progress.set(book.id, { chapter: current, scroll, total: chapters.length });
     $("#bar").style.width = `${((current + scroll) / chapters.length) * 100}%`;
   }
+
+  function saveProgress() {
+    if (loading || !book || !chapters.length) return;
+    Progress.set(book.id, {
+      chapter: current,
+      scroll: scrollFraction(),
+      total: chapters.length,
+    });
+    paintProgress();
+  }
+
+  let paintTick = false;
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (paintTick) return;
+      paintTick = true;
+      requestAnimationFrame(() => {
+        paintTick = false;
+        paintProgress();
+      });
+    },
+    { passive: true },
+  );
 
   window.addEventListener(
     "scroll",
@@ -197,7 +233,7 @@
     } catch (err) {
       if (myLoad !== loadId) return; // a newer load took over
       loading = false;
-      textEl.innerHTML = `<p class="r-state">Couldn’t load this chapter. ${escapeHTML(err.message)}</p>`;
+      textEl.innerHTML = `<p class="r-state">Couldn’t load this chapter. ${escapeHTML(err.message)}<br><br><button class="btn" type="button" data-retry="${target}">Try again</button></p>`;
       return;
     }
     if (myLoad !== loadId) return; // FIX: stale load, ignore
@@ -208,10 +244,14 @@
       .map((p) => `<p>${escapeHTML(p.trim())}</p>`)
       .join("");
     const title = chapterTitle(ch, current);
-    textEl.innerHTML = `<h1>${escapeHTML(title)}</h1>${paragraphs}`;
+    const eyebrow = ch.title
+      ? `<p class="r-eyebrow">Chapter ${current + 1}</p>`
+      : "";
+    textEl.innerHTML = `${eyebrow}<h1>${escapeHTML(title)}</h1>${paragraphs}`;
     $("#chapter-title").textContent = title;
     $("#pos").textContent = `Chapter ${current + 1} of ${chapters.length}`;
     $("#prev").disabled = current === 0;
+    finishedNow = false;
     $("#next").textContent =
       current === chapters.length - 1 ? "Finish" : "Next";
     document
@@ -230,21 +270,37 @@
       loading = false;
       saveProgress();
     });
+
+    // Warm up the next chapter so "Next" feels instant
+    const upcoming = chapters[current + 1];
+    if (upcoming && upcoming.text === undefined)
+      zip
+        .text(upcoming.file)
+        .then((t) => (upcoming.text ??= t))
+        .catch(() => {});
   }
 
   function go(delta) {
     const target = current + delta;
     if (loading || target < 0 || target >= chapters.length) return;
     showChapter(target);
+    textEl.focus({ preventScroll: true }); // keep keyboard navigation going
   }
 
   $("#prev").addEventListener("click", () => go(-1));
   $("#next").addEventListener("click", () => {
     if (loading) return;
     if (current < chapters.length - 1) return go(1);
+    if (finishedNow) return $("#back").click(); // second press: back to the library
     /* FIX: finishing works for every book, not only favorited ones */
     Favs.setFinished(book.id, true);
-    toast("Marked as finished");
+    finishedNow = true;
+    $("#next").textContent = "Library";
+    toast("Finished — marked as read");
+  });
+  textEl.addEventListener("click", (e) => {
+    const retry = e.target.closest("[data-retry]");
+    if (retry) showChapter(Number(retry.dataset.retry));
   });
   $("#toc-list").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
@@ -260,6 +316,22 @@
       if (panelOpen()) closePanels();
       else if (document.body.classList.contains("immersive"))
         setImmersive(false);
+      return;
+    }
+    if (e.key === "Tab" && panelOpen()) {
+      // keep keyboard focus inside the open panel
+      const items = [
+        ...document.querySelector(".panel.open").querySelectorAll("button, input, [href]"),
+      ].filter((el) => !el.disabled);
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
       return;
     }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
@@ -301,7 +373,7 @@
     passive: true,
   });
 
-  /* ---------- Phones: the top bar tucks away while you read ----------
+  /* ---------- Phones: the top bar and bottom nav tuck away while you read ----------
      Scrolling down hides it, scrolling up (or tapping the text) brings it back.
      style.css only applies the hiding at phone widths. */
   const phone = matchMedia("(max-width: 560px)");
@@ -314,7 +386,9 @@
       barTick = true;
       requestAnimationFrame(() => {
         const y = scrollY;
-        if (y < 80) document.body.classList.remove("bar-hidden");
+        // Near the top or the end of the chapter, the bars stay visible
+        const atEnd = y + innerHeight >= document.documentElement.scrollHeight - 160;
+        if (y < 80 || atEnd) document.body.classList.remove("bar-hidden");
         else if (Math.abs(y - lastY) > 8 && !panelOpen())
           document.body.classList.toggle("bar-hidden", y > lastY);
         lastY = y;
@@ -324,7 +398,7 @@
     { passive: true },
   );
   textEl.addEventListener("click", (e) => {
-    if (!phone.matches || String(getSelection()) || e.target.closest("a")) return;
+    if (!phone.matches || String(getSelection()) || e.target.closest("a, button")) return;
     document.body.classList.toggle("bar-hidden");
   });
 
@@ -371,7 +445,7 @@
       const books = await loadBooks();
       book = books.find((b) => b.id === bookId);
       if (!book) return fail("That book isn’t in the library.");
-      document.title = `${book.title} — Archive`;
+      document.title = `${book.title} — 3NDING`;
       $("#book-title").textContent = book.title;
 
       const res = await fetch(book.zip);

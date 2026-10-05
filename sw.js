@@ -1,11 +1,12 @@
-/* Archive service worker.
+/* 3NDING service worker.
    Bump VERSION on every deploy so clients pick up the new shell.
    Book downloads live in an UNVERSIONED cache so a deploy never deletes them. */
-const VERSION = "v2";
-const SHELL = `archive-shell-${VERSION}`;
-const BOOKS = "archive-books"; // must match Offline.CACHE in js/app.js
-const COVERS = "archive-covers";
-const FONTS = "archive-fonts";
+const VERSION = "v3";
+const SHELL = `3nding-shell-${VERSION}`;
+const BOOKS = "3nding-books"; // must match Offline.CACHE in js/app.js
+const LEGACY_BOOKS = "archive-books"; // pre-rebrand name; copied into BOOKS once
+const COVERS = "3nding-covers";
+const FONTS = "3nding-fonts";
 const KEEP = [SHELL, BOOKS, COVERS, FONTS];
 const MAX_COVERS = 80;
 
@@ -25,6 +26,8 @@ const SHELL_FILES = [
   "icons/icon.svg",
   "icons/icon-192.png",
   "icons/icon-512.png",
+  "icons/apple-touch-icon.png",
+  "icons/maskable-512.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -44,6 +47,21 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys();
+      // Keep readers' downloaded books across the rename from "Archive"
+      if (names.includes(LEGACY_BOOKS)) {
+        try {
+          const from = await caches.open(LEGACY_BOOKS);
+          const to = await caches.open(BOOKS);
+          for (const req of await from.keys()) {
+            if (!(await to.match(req))) {
+              const res = await from.match(req);
+              if (res) await to.put(req, res);
+            }
+          }
+        } catch {
+          /* best effort: the book can simply be downloaded again */
+        }
+      }
       await Promise.all(
         names.filter((n) => !KEEP.includes(n)).map((n) => caches.delete(n)),
       );
@@ -80,7 +98,8 @@ async function networkFirst(event, request, cacheName, patienceMs = 3500) {
   if (!cached) return network.catch(() => Response.error());
   event.waitUntil(network.catch(() => {}));
   return Promise.race([
-    network.catch(() => cached),
+    // a 404/500 from the server shouldn't hide a good saved copy
+    network.then((res) => (res.ok ? res : cached)).catch(() => cached),
     new Promise((resolve) => setTimeout(() => resolve(cached), patienceMs)),
   ]);
 }
