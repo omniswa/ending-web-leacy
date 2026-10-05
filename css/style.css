@@ -21,13 +21,11 @@
   --shadow:
     0 1px 2px rgba(20, 24, 40, 0.06), 0 10px 28px rgba(20, 24, 40, 0.08);
   --serif:
-    "Literata", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
-    serif;
+    "Literata", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --sans:
     "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     sans-serif;
-  --mono:
-    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -573,7 +571,7 @@ body.is-offline .fav-card:not(.saved) {
 /* ---------- Streak + weekly summary ---------- */
 #streak-section {
   margin-bottom: 40px;
-  scroll-margin-top: 84px;
+  scroll-margin-top: 60px;
 }
 .streak-card {
   display: grid;
@@ -789,6 +787,7 @@ body.is-offline .fav-card:not(.saved) {
   }
   .sc-main {
     align-self: center;
+    padding: 0 26px;
   }
   .sc-foot,
   .install,
@@ -1042,7 +1041,8 @@ body.reader {
   max-width: var(--measure);
   margin: 0 auto;
   padding: 48px max(22px, env(safe-area-inset-right))
-    calc(110px + env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+    calc(110px + env(safe-area-inset-bottom))
+    max(22px, env(safe-area-inset-left));
   font-size: var(--fs);
   line-height: 1.75;
   outline: none;
