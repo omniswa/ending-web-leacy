@@ -780,6 +780,9 @@ body.is-offline .fav-card:not(.saved) {
   font-size: 0.85rem;
 }
 @media (min-width: 760px) {
+  #streak-section {
+    scroll-margin-top: 80px;
+  }
   .streak-card {
     grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
     gap: 24px 40px;
@@ -787,7 +790,7 @@ body.is-offline .fav-card:not(.saved) {
   }
   .sc-main {
     align-self: center;
-    padding: 0 26px;
+    padding: 0 32px;
   }
   .sc-foot,
   .install,

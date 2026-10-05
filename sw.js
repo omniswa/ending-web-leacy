@@ -1,7 +1,7 @@
 /* 3NDING service worker.
    Bump VERSION on every deploy so clients pick up the new shell.
    Book downloads live in an UNVERSIONED cache so a deploy never deletes them. */
-const VERSION = "v4";
+const VERSION = "v1";
 const SHELL = `3nding-shell-${VERSION}`;
 const BOOKS = "3nding-books"; // must match Offline.CACHE in js/app.js
 const LEGACY_BOOKS = "archive-books"; // pre-rebrand name; copied into BOOKS once

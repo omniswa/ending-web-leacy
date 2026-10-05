@@ -421,7 +421,9 @@ const Offline = {
   },
   paintAll() {
     new Set(
-      [...document.querySelectorAll("[data-offline]")].map((b) => b.dataset.zip),
+      [...document.querySelectorAll("[data-offline]")].map(
+        (b) => b.dataset.zip,
+      ),
     ).forEach(Offline.paint);
   },
   async refresh() {
@@ -554,7 +556,10 @@ if (
         reg.addEventListener("updatefound", () => {
           const worker = reg.installing;
           worker?.addEventListener("statechange", () => {
-            if (worker.state === "installed" && navigator.serviceWorker.controller)
+            if (
+              worker.state === "installed" &&
+              navigator.serviceWorker.controller
+            )
               toast("Update ready — reload to get it");
           });
         });
