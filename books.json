@@ -1,6 +1,6 @@
 [
   {
-    "id": 1,
+    "id": "cartographers-daughter",
     "title": "The Cartographer's Daughter",
     "author": "Eleanor Whitfield",
     "added": "2026-10-01",
@@ -8,7 +8,7 @@
     "zip": "books/cartographers-daughter.zip"
   },
   {
-    "id": 2,
+    "id": "letter-to-a-young-botanist",
     "title": "Letters to a Young Botanist",
     "author": "H. T. Marwick",
     "added": "2026-10-01",
@@ -16,7 +16,7 @@
     "zip": "books/letter-to-a-young-botanist.zip"
   },
   {
-    "id": 3,
+    "id": "of-silent-things",
     "title": "Of Silent Things",
     "author": "Yuki Tawara",
     "added": "2026-10-01",
@@ -24,7 +24,7 @@
     "zip": "books/of-silent-things.zip"
   },
   {
-    "id": 4,
+    "id": "year-of-long-afternoons",
     "title": "The Year of Long Afternoons",
     "author": "Marco Bianchi",
     "added": "2026-10-01",
@@ -32,7 +32,7 @@
     "zip": "books/year-of-long-afternoons.zip"
   },
   {
-    "id": 5,
+    "id": "anatomy-of-quiet-room",
     "title": "Anatomy of a Quiet Room",
     "author": "Iris Cole",
     "added": "2026-10-01",
@@ -40,7 +40,7 @@
     "zip": "books/anatomy-of-quiet-room.zip"
   },
   {
-    "id": 6,
+    "id": "last-lighthouse-keeper",
     "title": "The Last Lighthouse Keeper",
     "author": "A. F. Pemberton",
     "added": "2026-10-01",
@@ -48,7 +48,7 @@
     "zip": "books/last-lighthouse-keeper.zip"
   },
   {
-    "id": 7,
+    "id": "fiels-notes-from-the-edge",
     "title": "Field Notes from the Edge",
     "author": "Tobias Lyle",
     "added": "2026-10-01",
@@ -56,7 +56,7 @@
     "zip": "books/fiels-notes-from-the-edge.zip"
   },
   {
-    "id": 8,
+    "id": "glasshouse-years",
     "title": "The Glasshouse Years",
     "author": "Petra Holm",
     "added": "2026-10-01",
@@ -64,7 +64,7 @@
     "zip": "books/glasshouse-years.zip"
   },
   {
-    "id": 9,
+    "id": "slow-waters",
     "title": "Slow Water",
     "author": "Nadia Okafor",
     "added": "2026-10-01",
@@ -72,7 +72,7 @@
     "zip": "books/slow-waters.zip"
   },
   {
-    "id": 10,
+    "id": "pocket-book-of-hours",
     "title": "A Pocket Book of Hours",
     "author": "Anonymous",
     "added": "2026-10-01",

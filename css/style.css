@@ -893,6 +893,10 @@ body.is-offline .fav-card:not(.saved) {
   font-size: 0.78rem;
   font-weight: 700;
 }
+.more-btn {
+  display: flex;
+  margin: 24px auto 0;
+}
 .empty {
   padding: 56px 20px;
   text-align: center;

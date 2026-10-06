@@ -1,7 +1,7 @@
 /* 3NDING service worker.
    Bump VERSION on every deploy so clients pick up the new shell.
    Book downloads live in an UNVERSIONED cache so a deploy never deletes them. */
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL = `3nding-shell-${VERSION}`;
 const BOOKS = "3nding-books"; // must match Offline.CACHE in js/app.js
 const LEGACY_BOOKS = "archive-books"; // pre-rebrand name; copied into BOOKS once
@@ -88,11 +88,17 @@ async function staleWhileRevalidate(event, request, cacheName, key = request) {
 }
 
 /* Network first; on a slow or dead connection fall back to the saved copy. */
-async function networkFirst(event, request, cacheName, patienceMs = 3500) {
+async function networkFirst(
+  event,
+  request,
+  cacheName,
+  patienceMs = 3500,
+  key = request,
+) {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
+  const cached = await cache.match(key);
   const network = fetch(request).then((res) => {
-    if (res.ok) cache.put(request, res.clone());
+    if (res.ok) cache.put(key, res.clone());
     return res;
   });
   if (!cached) return network.catch(() => Response.error());
@@ -120,11 +126,13 @@ async function trimCache(cacheName, max) {
   for (let i = 0; i < keys.length - max; i++) await cache.delete(keys[i]);
 }
 
-/* reader.html?id=3 and reader.html?id=5 share one cached page */
+/* reader.html?id=a and reader.html?id=b share one cached page.
+   Network first (with a saved fallback) so a deploy is never half-applied:
+   pages, scripts and books.json always come from the same version. */
 async function page(event, request) {
   const url = new URL(request.url);
   url.search = "";
-  const res = await staleWhileRevalidate(event, request, SHELL, url.href);
+  const res = await networkFirst(event, request, SHELL, 3500, url.href);
   if (res && res.type !== "error") return res;
   return (await caches.match("index.html")) || Response.error();
 }
@@ -144,7 +152,7 @@ self.addEventListener("fetch", (event) => {
     if (request.mode === "navigate") {
       return event.respondWith(page(event, request));
     }
-    return event.respondWith(staleWhileRevalidate(event, request, SHELL));
+    return event.respondWith(networkFirst(event, request, SHELL));
   }
 
   // Google Fonts: the stylesheet changes occasionally, the font files never do

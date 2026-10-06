@@ -3,7 +3,14 @@
 (() => {
   const list = $("#list");
   const empty = $("#empty");
-  const state = { books: [], filter: "all" };
+  /* Cards drawn at once; "Show more" reveals the next batch */
+  const BATCH = 24;
+  const state = { books: [], filter: "all", limit: BATCH };
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "btn more-btn";
+  more.hidden = true;
+  list.after(more);
 
   const favBooks = () => {
     const favs = Favs.all();
@@ -16,14 +23,14 @@
     const done = Favs.isFinished(b.id);
     const pct = Progress.percent(b.id);
     const started = !!Progress.get(b.id);
-    const href = `reader.html?id=${b.id}${done ? "&restart=1" : ""}`;
+    const href = readerUrl(b, done);
     const label = done
       ? "Read again"
       : started
         ? "Continue reading"
         : "Start reading";
     return `
-      <li class="fav-card${Offline.has(b.zip) ? " saved" : ""}" data-id="${b.id}">
+      <li class="fav-card${Offline.has(b.zip) ? " saved" : ""}" data-id="${escapeHTML(b.id)}">
         <a class="cover" href="${href}" tabindex="-1" aria-hidden="true">${coverImg(b)}</a>
         <div>
           <h3>${escapeHTML(b.title)}</h3>
@@ -57,8 +64,11 @@
     $("#summary").textContent = all.length
       ? `${all.length} saved · ${finished} finished`
       : "Books you favorite will be saved here, with your progress.";
-    list.innerHTML = shown.map(cardHTML).join("");
+    const visible = shown.slice(0, state.limit);
+    list.innerHTML = visible.map(cardHTML).join("");
     empty.hidden = !!shown.length;
+    more.hidden = visible.length >= shown.length;
+    more.textContent = `Show more (${shown.length - visible.length} left)`;
 
     if (!shown.length) {
       const none = !all.length;
@@ -72,7 +82,7 @@
   list.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
-    const id = Number(btn.closest(".fav-card").dataset.id);
+    const id = btn.closest(".fav-card").dataset.id;
     const action = btn.dataset.action;
     if (action === "remove") {
       Favs.toggle(id);
@@ -85,7 +95,7 @@
     render();
     // Re-rendering drops focus; put it back where the user was
     const again = list.querySelector(
-      `[data-id="${id}"] [data-action="${action}"]`,
+      `[data-id="${CSS.escape(id)}"] [data-action="${action}"]`,
     );
     (again || document.querySelector('.tabs [aria-pressed="true"]'))?.focus();
   });
@@ -94,15 +104,27 @@
     const btn = e.target.closest("[data-filter]");
     if (!btn) return;
     state.filter = btn.dataset.filter;
+    state.limit = BATCH;
     document
       .querySelectorAll(".tabs button")
       .forEach((b) => b.setAttribute("aria-pressed", b === btn));
     render();
   });
 
+  more.addEventListener("click", () => {
+    const before = list.children.length;
+    state.limit += BATCH;
+    render();
+    // Re-rendering drops focus; move it to the first newly revealed book
+    list.children[before]?.querySelector(".btn-primary")?.focus();
+  });
+
   const refresh = () => state.books.length && render();
   window.addEventListener("pageshow", (e) => e.persisted && refresh());
-  window.addEventListener("storage", refresh);
+  window.addEventListener("storage", (e) => {
+    if (e.key === null || e.key === "lib.favs" || e.key === "lib.progress")
+      refresh();
+  });
 
   loadBooks()
     .then((books) => {
