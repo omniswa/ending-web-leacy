@@ -35,7 +35,9 @@
   const root = document.documentElement;
   const textEl = $("#text");
   const params = new URLSearchParams(location.search);
-  const bookId = Number(params.get("id"));
+  // Old shared links use the numeric ids (?id=3); resolveId maps them to slugs
+  const rawId = params.get("id");
+  const bookId = resolveId(rawId);
   const restart = params.get("restart") === "1";
 
   let settings = cleanSettings(Store.get("settings", {}));
@@ -431,10 +433,26 @@
       const books = await loadBooks();
       book = books.find((b) => b.id === bookId);
       if (!book) return fail("That book isn’t in the library.");
+      // Rewrite an old numeric link to the permanent slug URL
+      if (rawId !== book.id)
+        history.replaceState(
+          null,
+          "",
+          readerUrl(book, restart),
+        );
       document.title = `${book.title} — 3NDING`;
       $("#book-title").textContent = book.title;
 
-      const res = await fetch(book.zip);
+      let res;
+      try {
+        res = await fetch(book.zip);
+      } catch {
+        throw new Error(
+          navigator.onLine === false
+            ? "You’re offline and this book hasn’t been saved. Open it once while online, or use the download button in the library."
+            : "Couldn’t reach the server. Check your connection and try again.",
+        );
+      }
       if (!res.ok)
         throw new Error(`Could not download the book (${res.status}).`);
       zip = await unzip(await res.arrayBuffer());
@@ -457,7 +475,7 @@
           scroll: 0,
           total: chapters.length,
         });
-        history.replaceState(null, "", `reader.html?id=${book.id}`);
+        history.replaceState(null, "", readerUrl(book));
       }
       await showChapter(
         saved?.total ? Math.min(saved.chapter, chapters.length - 1) : 0,

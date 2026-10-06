@@ -4,16 +4,34 @@
   /* Books per page. 12 divides evenly into 2, 3, 4 and 6 columns. */
   const PAGE_SIZE = 12;
 
+  /* One collator for all sorting: much faster than calling localeCompare per
+     comparison once the catalogue grows, and it orders "Book 2" before "Book 10". */
+  const collator = new Intl.Collator(undefined, {
+    sensitivity: "base",
+    numeric: true,
+  });
+  const compare = (a, b) => collator.compare(a, b);
+  /* Lower-case and strip accents so "garcia" finds "García" */
+  const fold = (s) =>
+    String(s)
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase();
+
   const surname = (a) => a.trim().split(/\s+/).pop();
   const byAuthor = (a, b) =>
-    surname(a.author).localeCompare(surname(b.author)) ||
-    a.title.localeCompare(b.title);
+    compare(surname(a.author), surname(b.author)) ||
+    compare(a.title, b.title);
 
+  /* Ids are slugs now, so ties on the date fall back to the book's position in
+     books.json (later = newer) instead of comparing ids as numbers. */
   const SORTS = {
-    newest: (a, b) => new Date(b.added) - new Date(a.added) || b.id - a.id,
-    oldest: (a, b) => new Date(a.added) - new Date(b.added) || a.id - b.id,
-    "title-asc": (a, b) => a.title.localeCompare(b.title),
-    "title-desc": (a, b) => b.title.localeCompare(a.title),
+    newest: (a, b) =>
+      (new Date(b.added) - new Date(a.added) || 0) || b.order - a.order,
+    oldest: (a, b) =>
+      (new Date(a.added) - new Date(b.added) || 0) || a.order - b.order,
+    "title-asc": (a, b) => compare(a.title, b.title),
+    "title-desc": (a, b) => compare(b.title, a.title),
     "author-asc": byAuthor,
     "author-desc": (a, b) => byAuthor(b, a),
   };
@@ -37,10 +55,10 @@
     const pct = Progress.percent(b.id);
     const fav = Favs.has(b.id);
     const done = Favs.isFinished(b.id);
-    const href = `reader.html?id=${b.id}${done ? "&restart=1" : ""}`;
+    const href = readerUrl(b, done);
     const label = done ? "Read again" : pct ? "Continue" : "Open";
     return `
-      <li class="card${Offline.has(b.zip) ? " saved" : ""}" data-id="${b.id}">
+      <li class="card${Offline.has(b.zip) ? " saved" : ""}" data-id="${escapeHTML(b.id)}">
         <div class="cover-wrap">
           <a class="cover" href="${href}" tabindex="-1" aria-hidden="true">
             ${coverImg(b)}
@@ -104,14 +122,10 @@
   }
 
   function renderGrid() {
-    const q = state.query.trim().toLowerCase();
+    // Every word must appear in the title or author, in any order
+    const words = fold(state.query).split(/\s+/).filter(Boolean);
     const list = state.books
-      .filter(
-        (b) =>
-          !q ||
-          b.title.toLowerCase().includes(q) ||
-          b.author.toLowerCase().includes(q),
-      )
+      .filter((b) => words.every((w) => b.haystack.includes(w)))
       .sort(SORTS[state.sort]);
 
     const total = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -137,13 +151,13 @@
         const ch = Progress.get(b.id).chapter + 1;
         return `
         <li class="rail-item">
-          <a class="cover" href="reader.html?id=${b.id}" tabindex="-1" aria-hidden="true">${coverImg(b)}</a>
+          <a class="cover" href="${readerUrl(b)}" tabindex="-1" aria-hidden="true">${coverImg(b)}</a>
           <div>
             <h3>${escapeHTML(b.title)}</h3>
             <p>${escapeHTML(b.author)}</p>
             <div class="progress" style="--p:${pct}%"><i></i></div>
             <small>${pct}% read · Chapter ${ch}</small>
-            <a class="btn btn-primary" href="reader.html?id=${b.id}">Continue reading</a>
+            <a class="btn btn-primary" href="${readerUrl(b)}">Continue reading</a>
           </div>
         </li>`;
       })
@@ -154,8 +168,9 @@
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const book = state.books.find(
-      (b) => b.id === Number(btn.closest(".card").dataset.id),
+      (b) => b.id === btn.closest(".card").dataset.id,
     );
+    if (!book) return;
     if (btn.dataset.action === "share") return shareBook(book);
     const on = Favs.toggle(book.id);
     btn.classList.toggle("on", on);
@@ -183,10 +198,15 @@
 
   $("#search-icon").innerHTML = icon("search");
   $("#sort").value = state.sort;
+  // Debounced: re-rendering the grid on every keystroke reloads cards and flickers
+  let searchTimer = 0;
   $("#search").addEventListener("input", (e) => {
     state.query = e.target.value;
-    state.page = 1;
-    renderGrid();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      state.page = 1;
+      renderGrid();
+    }, 120);
   });
   $("#sort").addEventListener("change", (e) => {
     state.sort = e.target.value;
@@ -202,15 +222,27 @@
   };
   // Refresh progress when returning via the back button (bfcache) or from another tab
   window.addEventListener("pageshow", (e) => e.persisted && refresh());
-  window.addEventListener("storage", refresh);
+  window.addEventListener("storage", (e) => {
+    // Reading in another tab saves the streak every few seconds; only favorites
+    // and progress change what this page shows (key is null when storage is cleared)
+    if (e.key === null || e.key === "lib.favs" || e.key === "lib.progress")
+      refresh();
+  });
 
   loadBooks()
     .then((books) => {
-      state.books = books;
+      state.books = books.map((b) => ({
+        ...b,
+        haystack: fold(`${b.title} ${b.author}`),
+      }));
       refresh();
     })
     .catch((err) => {
       status.hidden = false;
-      status.textContent = `${err.message}. Serve this folder over HTTP and reload.`;
+      const hint =
+        location.protocol === "file:"
+          ? "Serve this folder over HTTP and reload."
+          : "Check your connection and reload.";
+      status.textContent = `${err.message}. ${hint}`;
     });
 })();

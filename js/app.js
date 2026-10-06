@@ -28,15 +28,27 @@ const icon = (name, size = 18) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
 /* ---------- Local storage ---------- */
+/* Parsed values are cached in memory: the library renders many cards and each
+   one asks about favorites/progress, which used to re-parse localStorage JSON
+   several times per card. Callers must treat returned objects as read-only and
+   copy before changing them (see Favs / Progress / Streak). The cache is
+   dropped whenever another tab writes or this page comes back from the bfcache. */
 const Store = {
+  cache: new Map(),
   get(key, fallback) {
-    try {
-      return JSON.parse(localStorage.getItem("lib." + key)) ?? fallback;
-    } catch {
-      return fallback;
+    if (!Store.cache.has(key)) {
+      let value = null;
+      try {
+        value = JSON.parse(localStorage.getItem("lib." + key));
+      } catch {
+        /* storage unavailable or corrupted: behave as if empty */
+      }
+      Store.cache.set(key, value);
     }
+    return Store.cache.get(key) ?? fallback;
   },
   set(key, value) {
+    Store.cache.set(key, value);
     try {
       localStorage.setItem("lib." + key, JSON.stringify(value));
     } catch {
@@ -44,36 +56,87 @@ const Store = {
     }
   },
   remove(key) {
+    Store.cache.delete(key);
     try {
       localStorage.removeItem("lib." + key);
     } catch {
       /* storage unavailable */
     }
   },
+  invalidate() {
+    Store.cache.clear();
+  },
 };
+/* Registered first, so it runs before every other storage/pageshow listener */
+window.addEventListener("storage", Store.invalidate);
+window.addEventListener("pageshow", (e) => e.persisted && Store.invalidate());
+
+/* ---------- Book ids ----------
+   A book's id is the file name of its zip without folder or extension
+   (books/of-silent-things.zip → "of-silent-things"). Ids used to be the
+   numbers 1–10; LEGACY_IDS maps those so saved favorites, progress and old
+   shared links keep working. Never reuse or change an id once published. */
+const LEGACY_IDS = {
+  1: "cartographers-daughter",
+  2: "letter-to-a-young-botanist",
+  3: "of-silent-things",
+  4: "year-of-long-afternoons",
+  5: "anatomy-of-quiet-room",
+  6: "last-lighthouse-keeper",
+  7: "fiels-notes-from-the-edge",
+  8: "glasshouse-years",
+  9: "slow-waters",
+  10: "pocket-book-of-hours",
+};
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+const resolveId = (id) =>
+  id != null && hasOwn(LEGACY_IDS, id) ? LEGACY_IDS[id] : id;
+const readerUrl = (book, restart = false) =>
+  `reader.html?id=${encodeURIComponent(book.id)}${restart ? "&restart=1" : ""}`;
+
+/* Rewrites saved data keyed by an old numeric id to the slug. Idempotent and
+   cheap, so it simply runs on every page load (an old tab or cached script
+   writing a numeric key again is cleaned up on the next load). */
+function migrateLegacyIds() {
+  for (const key of ["favs", "progress"]) {
+    const data = Store.get(key, null);
+    if (!data || typeof data !== "object") continue;
+    if (!Object.keys(data).some((k) => hasOwn(LEGACY_IDS, k))) continue;
+    const stamp = (v) => (v && (v.updated || v.addedAt)) || 0;
+    const out = {};
+    for (const [k, v] of Object.entries(data)) {
+      const id = resolveId(k);
+      // If both an old and a new entry exist, keep the more recent one
+      if (!hasOwn(out, id) || stamp(v) >= stamp(out[id])) out[id] = v;
+    }
+    Store.set(key, out);
+  }
+}
 
 const Favs = {
   all: () => Store.get("favs", {}),
-  has: (id) => String(id) in Favs.all(),
-  /* FIX: "finished" now also lives in Progress, so books that were never
+  has: (id) => hasOwn(Favs.all(), id),
+  /* "finished" also lives in Progress, so books that were never
      favorited can be finished too (and stop showing in "Continue reading"). */
   isFinished: (id) =>
     !!(Favs.all()[id]?.finished || Progress.all()[id]?.finished),
   toggle(id) {
-    const favs = Favs.all();
-    if (id in favs) delete favs[id];
-    else favs[id] = { finished: false, addedAt: Date.now() };
+    const favs = { ...Favs.all() };
+    const on = !hasOwn(favs, id);
+    if (on) favs[id] = { finished: false, addedAt: Date.now() };
+    else delete favs[id];
     Store.set("favs", favs);
     updateFavCount();
-    return id in favs;
+    return on;
   },
   setFinished(id, finished) {
-    const favs = Favs.all();
-    if (favs[id]) {
-      favs[id].finished = finished;
-      Store.set("favs", favs);
+    if (Favs.has(id)) {
+      Store.set("favs", {
+        ...Favs.all(),
+        [id]: { ...Favs.all()[id], finished },
+      });
     }
-    const all = Progress.all();
+    const all = { ...Progress.all() };
     if (finished) {
       all[id] = {
         ...all[id],
@@ -82,10 +145,10 @@ const Favs = {
         updated: Date.now(),
       };
     } else if (all[id]) {
-      delete all[id].finished;
-      delete all[id].finishedAt;
+      const { finished: _f, finishedAt: _t, ...rest } = all[id];
       // An entry that was created only by "mark finished" carries no reading data
-      if (all[id].total === undefined) delete all[id];
+      if (rest.total === undefined) delete all[id];
+      else all[id] = rest;
     }
     Store.set("progress", all);
   },
@@ -95,7 +158,7 @@ const Progress = {
   all: () => Store.get("progress", {}),
   get: (id) => Progress.all()[id] || null,
   set(id, patch) {
-    const all = Progress.all();
+    const all = { ...Progress.all() };
     all[id] = { ...all[id], ...patch, updated: Date.now() };
     Store.set("progress", all);
   },
@@ -114,18 +177,47 @@ const Progress = {
   },
 };
 
+migrateLegacyIds();
+
 /* ---------- Data ---------- */
 async function loadBooks() {
   const res = await fetch("books.json");
   if (!res.ok) throw new Error(`Could not load books.json (${res.status})`);
-  return res.json();
+  const raw = await res.json();
+  if (!Array.isArray(raw)) throw new Error("books.json must be a list");
+  const seen = new Set();
+  const books = [];
+  for (const b of raw) {
+    // A bad entry is skipped (and reported) instead of breaking the whole library
+    const valid =
+      b &&
+      typeof b.id === "string" &&
+      /^[\w-]+$/.test(b.id) &&
+      !seen.has(b.id) &&
+      b.title &&
+      b.zip;
+    if (!valid) {
+      console.warn("Skipping invalid or duplicate book in books.json:", b);
+      continue;
+    }
+    seen.add(b.id);
+    // order = position in books.json; later entries count as newer on equal dates
+    books.push({ ...b, order: books.length });
+  }
+  loadBooks.ids = seen;
+  updateFavCount();
+  return books;
 }
 
 /* ---------- UI helpers ---------- */
 function updateFavCount() {
   const el = $("#fav-count");
   if (!el) return;
-  const n = Object.keys(Favs.all()).length;
+  // Once the catalogue is known, don't count favorites of books that no longer exist
+  const ids = Object.keys(Favs.all()).filter(
+    (id) => !loadBooks.ids || loadBooks.ids.has(id),
+  );
+  const n = ids.length;
   el.textContent = n || "";
   el.hidden = !n;
 }
@@ -145,7 +237,7 @@ function toast(message) {
 }
 
 async function shareBook(book) {
-  const url = new URL(`reader.html?id=${book.id}`, location.href).href;
+  const url = new URL(readerUrl(book), location.href).href;
   try {
     if (navigator.share) {
       await navigator.share({
@@ -194,7 +286,8 @@ const Streak = {
     const d = Store.get("streak", {});
     return {
       goal: Streak.GOALS.includes(d.goal) ? d.goal : 10,
-      days: d.days && typeof d.days === "object" ? d.days : {},
+      // copied: add() edits it, and the stored object is shared through the cache
+      days: d.days && typeof d.days === "object" ? { ...d.days } : {},
     };
   },
   dayKey(date = new Date()) {
@@ -579,6 +672,8 @@ async function unzip(buffer) {
   const entries = new Map();
 
   for (let i = 0; i < count; i++) {
+    if (view.getUint32(p, true) !== 0x02014b50)
+      throw new Error("This book file is damaged");
     const method = view.getUint16(p + 10, true);
     const size = view.getUint32(p + 20, true);
     const nameLen = view.getUint16(p + 28, true);
@@ -598,9 +693,10 @@ async function unzip(buffer) {
 
   return {
     async text(name) {
-      const key = [...entries.keys()].find(
-        (k) => k === name || k.endsWith("/" + name),
-      );
+      // An exact path wins; otherwise accept the same name inside a folder
+      const key = entries.has(name)
+        ? name
+        : [...entries.keys()].find((k) => k.endsWith("/" + name));
       if (!key) throw new Error(`"${name}" not found in this book file`);
       const { method, data } = entries.get(key);
       if (method === 0) return utf8.decode(data);

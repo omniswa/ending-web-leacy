@@ -128,4 +128,14 @@
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") render();
   });
+  // ...also while it stays open and visible: refresh just after midnight
+  (function scheduleRollover() {
+    const next = new Date();
+    next.setHours(24, 0, 1, 0);
+    setTimeout(() => {
+      render();
+      updateStreakChip();
+      scheduleRollover();
+    }, next - Date.now());
+  })();
 })();
