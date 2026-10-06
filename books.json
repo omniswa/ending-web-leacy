@@ -48,12 +48,12 @@
     "zip": "books/last-lighthouse-keeper.zip"
   },
   {
-    "id": "fiels-notes-from-the-edge",
+    "id": "field-notes-from-the-edge",
     "title": "Field Notes from the Edge",
     "author": "Tobias Lyle",
     "added": "2026-10-01",
     "cover": "https://picsum.photos/seed/book-field-notes-edge/600/800",
-    "zip": "books/fiels-notes-from-the-edge.zip"
+    "zip": "books/field-notes-from-the-edge.zip"
   },
   {
     "id": "glasshouse-years",

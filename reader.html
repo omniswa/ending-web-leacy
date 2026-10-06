@@ -46,6 +46,9 @@
       } catch {}
     </script>
     <link rel="stylesheet" href="css/style.css" />
+  <!-- seo:head:start -->
+    <meta name="robots" content="noindex, follow" />
+<!-- seo:head:end -->
   </head>
   <body class="reader">
     <header class="r-bar">
@@ -104,7 +107,7 @@
 
     <div class="scrim" id="scrim"></div>
 
-    <aside class="panel" id="toc" aria-label="Chapters">
+    <aside class="panel" id="toc" role="dialog" aria-modal="true" aria-label="Chapters">
       <header>
         <h2>Chapters</h2>
         <button
@@ -117,7 +120,7 @@
       <ol class="toc" id="toc-list"></ol>
     </aside>
 
-    <aside class="panel" id="settings" aria-label="Reading settings">
+    <aside class="panel" id="settings" role="dialog" aria-modal="true" aria-label="Reading settings">
       <header>
         <h2>Reading settings</h2>
         <button

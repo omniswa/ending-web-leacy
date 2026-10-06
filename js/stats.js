@@ -1,7 +1,5 @@
 "use strict";
 
-/* Reading week card on the home page: streak, today's goal,
-   minutes per day for the last 7 days, and a short summary. */
 (() => {
   const host = $("#streak-section");
   if (!host) return;
@@ -12,7 +10,12 @@
     return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} m`;
   };
   function versusLastWeek(total, prev) {
-    if (!prev) return total ? "First week" : "Start today";
+    if (!prev)
+      return total
+        ? Streak.totalMinutes() * 60 > total + 60
+          ? "Back this week"
+          : "First week"
+        : "Start today";
     const pct = Math.round(((total - prev) / prev) * 100);
     return pct === 0 ? "Same as last week" : `${pct > 0 ? "+" : ""}${pct}% vs last week`;
   }
@@ -121,14 +124,18 @@
   });
 
   render();
-  window.addEventListener("storage", render);
+  let storageTimer = 0;
+  window.addEventListener("storage", () => {
+    clearTimeout(storageTimer);
+    storageTimer = setTimeout(() => {
+      if (document.activeElement?.id !== "goal") render();
+    }, 400);
+  });
   window.addEventListener("pageshow", (e) => e.persisted && render());
   document.addEventListener("installchange", render);
-  // The day rolls over while the page is open
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") render();
   });
-  // ...also while it stays open and visible: refresh just after midnight
   (function scheduleRollover() {
     const next = new Date();
     next.setHours(24, 0, 1, 0);

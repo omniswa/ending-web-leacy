@@ -28,11 +28,6 @@ const icon = (name, size = 18) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
 /* ---------- Local storage ---------- */
-/* Parsed values are cached in memory: the library renders many cards and each
-   one asks about favorites/progress, which used to re-parse localStorage JSON
-   several times per card. Callers must treat returned objects as read-only and
-   copy before changing them (see Favs / Progress / Streak). The cache is
-   dropped whenever another tab writes or this page comes back from the bfcache. */
 const Store = {
   cache: new Map(),
   get(key, fallback) {
@@ -71,11 +66,7 @@ const Store = {
 window.addEventListener("storage", Store.invalidate);
 window.addEventListener("pageshow", (e) => e.persisted && Store.invalidate());
 
-/* ---------- Book ids ----------
-   A book's id is the file name of its zip without folder or extension
-   (books/of-silent-things.zip → "of-silent-things"). Ids used to be the
-   numbers 1–10; LEGACY_IDS maps those so saved favorites, progress and old
-   shared links keep working. Never reuse or change an id once published. */
+/* ---------- Book ids ---------- */
 const LEGACY_IDS = {
   1: "cartographers-daughter",
   2: "letter-to-a-young-botanist",
@@ -83,10 +74,11 @@ const LEGACY_IDS = {
   4: "year-of-long-afternoons",
   5: "anatomy-of-quiet-room",
   6: "last-lighthouse-keeper",
-  7: "fiels-notes-from-the-edge",
+  7: "field-notes-from-the-edge",
   8: "glasshouse-years",
   9: "slow-waters",
   10: "pocket-book-of-hours",
+  "fiels-notes-from-the-edge": "field-notes-from-the-edge",
 };
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 const resolveId = (id) =>
@@ -94,9 +86,6 @@ const resolveId = (id) =>
 const readerUrl = (book, restart = false) =>
   `reader.html?id=${encodeURIComponent(book.id)}${restart ? "&restart=1" : ""}`;
 
-/* Rewrites saved data keyed by an old numeric id to the slug. Idempotent and
-   cheap, so it simply runs on every page load (an old tab or cached script
-   writing a numeric key again is cleaned up on the next load). */
 function migrateLegacyIds() {
   for (const key of ["favs", "progress"]) {
     const data = Store.get(key, null);
@@ -106,7 +95,6 @@ function migrateLegacyIds() {
     const out = {};
     for (const [k, v] of Object.entries(data)) {
       const id = resolveId(k);
-      // If both an old and a new entry exist, keep the more recent one
       if (!hasOwn(out, id) || stamp(v) >= stamp(out[id])) out[id] = v;
     }
     Store.set(key, out);
@@ -116,8 +104,6 @@ function migrateLegacyIds() {
 const Favs = {
   all: () => Store.get("favs", {}),
   has: (id) => hasOwn(Favs.all(), id),
-  /* "finished" also lives in Progress, so books that were never
-     favorited can be finished too (and stop showing in "Continue reading"). */
   isFinished: (id) =>
     !!(Favs.all()[id]?.finished || Progress.all()[id]?.finished),
   toggle(id) {
@@ -146,7 +132,6 @@ const Favs = {
       };
     } else if (all[id]) {
       const { finished: _f, finishedAt: _t, ...rest } = all[id];
-      // An entry that was created only by "mark finished" carries no reading data
       if (rest.total === undefined) delete all[id];
       else all[id] = rest;
     }
@@ -168,7 +153,6 @@ const Progress = {
     if (!p || !p.total) return 0;
     return Math.min(100, Math.round(((p.chapter + p.scroll) / p.total) * 100));
   },
-  /** Books started and not finished, most recently read first. */
   recent(books) {
     const all = Progress.all();
     return books
@@ -188,7 +172,6 @@ async function loadBooks() {
   const seen = new Set();
   const books = [];
   for (const b of raw) {
-    // A bad entry is skipped (and reported) instead of breaking the whole library
     const valid =
       b &&
       typeof b.id === "string" &&
@@ -201,7 +184,6 @@ async function loadBooks() {
       continue;
     }
     seen.add(b.id);
-    // order = position in books.json; later entries count as newer on equal dates
     books.push({ ...b, order: books.length });
   }
   loadBooks.ids = seen;
@@ -213,7 +195,6 @@ async function loadBooks() {
 function updateFavCount() {
   const el = $("#fav-count");
   if (!el) return;
-  // Once the catalogue is known, don't count favorites of books that no longer exist
   const ids = Object.keys(Favs.all()).filter(
     (id) => !loadBooks.ids || loadBooks.ids.has(id),
   );
@@ -263,14 +244,12 @@ const escapeHTML = (s) =>
       ],
   );
 
-const coverImg = (b) =>
-  `<img src="${escapeHTML(b.cover)}" alt="Cover of ${escapeHTML(b.title)}" loading="lazy" width="600" height="800">`;
+const coverImg = (b, eager = false) =>
+  `<img src="${escapeHTML(b.cover)}" alt="Cover of ${escapeHTML(b.title)}" loading="${eager ? "eager" : "lazy"}" width="600" height="800">`;
 
 document.addEventListener("DOMContentLoaded", updateFavCount);
-/* Keep the favorites badge in sync (other tabs, back/forward cache) */
 window.addEventListener("storage", updateFavCount);
 window.addEventListener("pageshow", updateFavCount);
-/* Broken cover images fall back to the gradient background */
 document.addEventListener(
   "error",
   (e) => {
@@ -286,7 +265,6 @@ const Streak = {
     const d = Store.get("streak", {});
     return {
       goal: Streak.GOALS.includes(d.goal) ? d.goal : 10,
-      // copied: add() edits it, and the stored object is shared through the cache
       days: d.days && typeof d.days === "object" ? { ...d.days } : {},
     };
   },
@@ -300,7 +278,6 @@ const Streak = {
   met(d, key) {
     return (d.days[key] || 0) >= d.goal * 60;
   },
-  /** Adds reading time to today. Returns true if this call reached the goal. */
   add(sec) {
     if (!(sec > 0)) return false;
     const d = Streak.data();
@@ -321,7 +298,6 @@ const Streak = {
     Store.set("streak", d);
     updateStreakChip();
   },
-  /** Consecutive goal-days ending today, or yesterday if today isn't done yet. */
   current() {
     const d = Streak.data();
     const day = new Date();
@@ -349,7 +325,6 @@ const Streak = {
     }
     return best;
   },
-  /** The last 7 days, oldest first. */
   week() {
     const d = Streak.data();
     const out = [];
@@ -374,7 +349,6 @@ const Streak = {
       Object.values(d.days).reduce((a, b) => a + (Number(b) || 0), 0) / 60,
     );
   },
-  /** The last 7 days compared with the 7 days before them. */
   summary() {
     const d = Streak.data();
     const sum = (from, to) => {
@@ -430,7 +404,6 @@ function updateStreakChip() {
     n ? `${n}-day reading streak` : "No reading streak yet",
   );
 }
-/* Tab-bar icons for the main links (shown on phones; see style.css) */
 function decorateNav() {
   document.querySelectorAll(".site-header nav a[data-icon]").forEach((a) => {
     if (a.querySelector(".ico")) return;
@@ -449,18 +422,15 @@ document.addEventListener("DOMContentLoaded", updateStreakChip);
 window.addEventListener("storage", updateStreakChip);
 window.addEventListener("pageshow", updateStreakChip);
 
-/* ---------- Offline books: save a zip into the Cache API ----------
-   The service worker serves anything in this cache when you are offline,
-   and also fills it whenever you open a book while online. The cache name
-   is NOT versioned so shipping a new site version never deletes books. */
+/* ---------- Offline books: save a zip into the Cache API ---------- */
 const Offline = {
   CACHE: "3nding-books",
   supported:
     "caches" in window &&
     "serviceWorker" in navigator &&
     window.isSecureContext,
-  saved: new Set(), // absolute URLs currently in the cache
-  busy: new Map(), // zip -> 0..1 progress, or -1 when the size is unknown
+  saved: new Set(),
+  busy: new Map(), 
   abs: (zip) => new URL(zip, location.href).href,
   has: (zip) => Offline.saved.has(Offline.abs(zip)),
   state(zip) {
@@ -484,12 +454,11 @@ const Offline = {
       : s === "busy"
         ? "Downloading…"
         : "Save for offline reading",
-  /** Button markup; returns "" where offline saving isn't possible. */
   btn(book, cls) {
     if (!Offline.supported) return "";
     const s = Offline.state(book.zip);
     return `<button type="button" class="${cls} offline-btn" data-offline data-zip="${escapeHTML(book.zip)}" data-title="${escapeHTML(book.title)}"
-      aria-pressed="${s === "saved"}" aria-busy="${s === "busy"}" aria-label="Save offline: ${escapeHTML(book.title)}" title="${Offline.tip(s)}">${Offline.inner(book.zip)}</button>`;
+      aria-pressed="${s === "saved"}" aria-busy="${s === "busy"}" aria-label="${s === "saved" ? "Remove offline copy" : "Save offline"}: ${escapeHTML(book.title)}" title="${Offline.tip(s)}">${Offline.inner(book.zip)}</button>`;
   },
   paint(zip) {
     const s = Offline.state(zip);
@@ -499,6 +468,10 @@ const Offline = {
       b.setAttribute("aria-pressed", s === "saved");
       b.setAttribute("aria-busy", s === "busy");
       b.title = Offline.tip(s);
+      b.setAttribute(
+        "aria-label",
+        `${s === "saved" ? "Remove offline copy" : "Save offline"}: ${b.dataset.title}`,
+      );
       b.closest(".card, .fav-card")?.classList.toggle("saved", s === "saved");
     });
   },
@@ -538,7 +511,7 @@ const Offline = {
       const total = Number(res.headers.get("content-length")) || 0;
       const reader = res.clone().body?.getReader();
       const stored = cache.put(url, res);
-      stored.catch(() => {}); // surfaced below by the await
+      stored.catch(() => {});
       if (reader) {
         let got = 0;
         let last = 0;
@@ -578,7 +551,6 @@ document.addEventListener("click", (e) => {
     e.preventDefault();
     return Offline.toggle(b.dataset.zip, b.dataset.title);
   }
-  // Offline and not saved: opening would just fail, so explain instead
   const link = e.target.closest('a[href^="reader.html"]');
   if (link && navigator.onLine === false) {
     const card = link.closest(".card, .fav-card");
@@ -693,7 +665,6 @@ async function unzip(buffer) {
 
   return {
     async text(name) {
-      // An exact path wins; otherwise accept the same name inside a folder
       const key = entries.has(name)
         ? name
         : [...entries.keys()].find((k) => k.endsWith("/" + name));

@@ -1,17 +1,12 @@
 "use strict";
 
 (() => {
-  /* Books per page. 12 divides evenly into 2, 3, 4 and 6 columns. */
   const PAGE_SIZE = 12;
-
-  /* One collator for all sorting: much faster than calling localeCompare per
-     comparison once the catalogue grows, and it orders "Book 2" before "Book 10". */
   const collator = new Intl.Collator(undefined, {
     sensitivity: "base",
     numeric: true,
   });
   const compare = (a, b) => collator.compare(a, b);
-  /* Lower-case and strip accents so "garcia" finds "García" */
   const fold = (s) =>
     String(s)
       .normalize("NFD")
@@ -22,9 +17,6 @@
   const byAuthor = (a, b) =>
     compare(surname(a.author), surname(b.author)) ||
     compare(a.title, b.title);
-
-  /* Ids are slugs now, so ties on the date fall back to the book's position in
-     books.json (later = newer) instead of comparing ids as numbers. */
   const SORTS = {
     newest: (a, b) =>
       (new Date(b.added) - new Date(a.added) || 0) || b.order - a.order,
@@ -43,7 +35,6 @@
     books: [],
     query: "",
     sort: Store.get("home.sort", "newest"),
-    // Page lives in the URL so Back from the reader returns to the same page
     page: Math.max(
       1,
       parseInt(new URLSearchParams(location.search).get("page")) || 1,
@@ -51,7 +42,7 @@
   };
   if (!SORTS[state.sort]) state.sort = "newest";
 
-  const cardHTML = (b) => {
+  const cardHTML = (b, i) => {
     const pct = Progress.percent(b.id);
     const fav = Favs.has(b.id);
     const done = Favs.isFinished(b.id);
@@ -61,7 +52,7 @@
       <li class="card${Offline.has(b.zip) ? " saved" : ""}" data-id="${escapeHTML(b.id)}">
         <div class="cover-wrap">
           <a class="cover" href="${href}" tabindex="-1" aria-hidden="true">
-            ${coverImg(b)}
+            ${coverImg(b, i < 4)}
             ${pct ? `<div class="progress" style="--p:${pct}%"><i></i></div>` : ""}
           </a>
           <button class="chip chip-fav ${fav ? "on" : ""}" type="button" data-action="fav" aria-pressed="${fav}"
@@ -79,7 +70,6 @@
       </li>`;
   };
 
-  /* 1 … 4 5 6 … 12 — always first, last, and the neighbours of the current page */
   function pageItems(cur, total) {
     const keep = new Set([1, total, cur - 1, cur, cur + 1]);
     if (cur <= 3) [2, 3, 4].forEach((n) => keep.add(n));
@@ -122,7 +112,6 @@
   }
 
   function renderGrid() {
-    // Every word must appear in the title or author, in any order
     const words = fold(state.query).split(/\s+/).filter(Boolean);
     const list = state.books
       .filter((b) => words.every((w) => b.haystack.includes(w)))
@@ -198,7 +187,6 @@
 
   $("#search-icon").innerHTML = icon("search");
   $("#sort").value = state.sort;
-  // Debounced: re-rendering the grid on every keystroke reloads cards and flickers
   let searchTimer = 0;
   $("#search").addEventListener("input", (e) => {
     state.query = e.target.value;
@@ -220,11 +208,8 @@
     renderRecent();
     renderGrid();
   };
-  // Refresh progress when returning via the back button (bfcache) or from another tab
   window.addEventListener("pageshow", (e) => e.persisted && refresh());
   window.addEventListener("storage", (e) => {
-    // Reading in another tab saves the streak every few seconds; only favorites
-    // and progress change what this page shows (key is null when storage is cleared)
     if (e.key === null || e.key === "lib.favs" || e.key === "lib.progress")
       refresh();
   });

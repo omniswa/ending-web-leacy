@@ -15,7 +15,6 @@
     dark: "#1c2027",
     oled: "#000000",
   };
-  /* FIX: validate saved settings so corrupted storage can't break the theme */
   const VALID = {
     font: ["serif", "sans", "mono"],
     theme: Object.keys(THEME_COLORS),
@@ -35,7 +34,6 @@
   const root = document.documentElement;
   const textEl = $("#text");
   const params = new URLSearchParams(location.search);
-  // Old shared links use the numeric ids (?id=3); resolveId maps them to slugs
   const rawId = params.get("id");
   const bookId = resolveId(rawId);
   const restart = params.get("restart") === "1";
@@ -47,9 +45,10 @@
   let current = 0;
   let saveTimer = 0;
   let loading = false;
-  let loadId = 0; // FIX: guards against overlapping chapter loads
+  let loadId = 0;
   let lastTrigger = null;
-  let finishedNow = false; // the Finish button has been pressed on the last chapter
+  let finishedNow = false;
+  let failed = false;
 
   /* ---------- Static icons ---------- */
   $("#back").innerHTML = icon("left", 20);
@@ -62,7 +61,6 @@
     .querySelectorAll("[data-close]")
     .forEach((b) => (b.innerHTML = icon("x", 20)));
 
-  /* FIX: "Back" returns to the exact library page/sort the reader came from */
   $("#back").addEventListener("click", (e) => {
     if (history.length > 1 && document.referrer.startsWith(location.origin)) {
       e.preventDefault();
@@ -184,7 +182,7 @@
   }
 
   function saveProgress() {
-    if (loading || !book || !chapters.length) return;
+    if (loading || failed || !book || !chapters.length) return;
     Progress.set(book.id, {
       chapter: current,
       scroll: scrollFraction(),
@@ -233,12 +231,14 @@
     try {
       if (ch.text === undefined) ch.text = await zip.text(ch.file);
     } catch (err) {
-      if (myLoad !== loadId) return; // a newer load took over
+      if (myLoad !== loadId) return;
       loading = false;
+      failed = true;
       textEl.innerHTML = `<p class="r-state">Couldn’t load this chapter. ${escapeHTML(err.message)}<br><br><button class="btn" type="button" data-retry="${target}">Try again</button></p>`;
       return;
     }
-    if (myLoad !== loadId) return; // FIX: stale load, ignore
+    if (myLoad !== loadId) return;
+    failed = false;
     current = target;
     const paragraphs = ch.text
       .trim()
@@ -272,7 +272,6 @@
       saveProgress();
     });
 
-    // Warm up the next chapter so "Next" feels instant
     const upcoming = chapters[current + 1];
     if (upcoming && upcoming.text === undefined)
       zip
@@ -285,15 +284,14 @@
     const target = current + delta;
     if (loading || target < 0 || target >= chapters.length) return;
     showChapter(target);
-    textEl.focus({ preventScroll: true }); // keep keyboard navigation going
+    textEl.focus({ preventScroll: true });
   }
 
   $("#prev").addEventListener("click", () => go(-1));
   $("#next").addEventListener("click", () => {
     if (loading) return;
     if (current < chapters.length - 1) return go(1);
-    if (finishedNow) return $("#back").click(); // second press: back to the library
-    /* FIX: finishing works for every book, not only favorited ones */
+    if (finishedNow) return $("#back").click(); 
     Favs.setFinished(book.id, true);
     finishedNow = true;
     $("#next").textContent = "Library";
@@ -308,7 +306,7 @@
     if (!btn) return;
     closePanels(false);
     showChapter(Number(btn.dataset.index));
-    textEl.focus({ preventScroll: true }); // focus would otherwise be lost
+    textEl.focus({ preventScroll: true });
   });
 
   /* ---------- Keyboard navigation ---------- */
@@ -320,7 +318,6 @@
       return;
     }
     if (e.key === "Tab" && panelOpen()) {
-      // keep keyboard focus inside the open panel
       const items = [
         ...document
           .querySelector(".panel.open")
@@ -380,7 +377,7 @@
   const touchUI = matchMedia("(max-width: 560px), (pointer: coarse)");
   document.addEventListener("click", (e) => {
     if (!touchUI.matches || panelOpen()) return;
-    if (String(getSelection())) return; // finishing a text selection, not a tap
+    if (String(getSelection())) return; 
     if (
       e.target.closest(
         ".r-bar, .r-foot, .panel, .scrim, #exit-fs, a, button, input, select, label",
@@ -390,10 +387,7 @@
     document.body.classList.toggle("bar-hidden");
   });
 
-  /* ---------- Reading time → daily streak ----------
-     Counts a second only while the page is visible and you've scrolled,
-     tapped or pressed a key in the last minute, so a book left open
-     overnight doesn't earn a streak. */
+  /* ---------- Reading time → daily streak ---------- */
   const IDLE_MS = 60000;
   let lastActive = Date.now();
   let pendingSeconds = 0;
@@ -433,7 +427,6 @@
       const books = await loadBooks();
       book = books.find((b) => b.id === bookId);
       if (!book) return fail("That book isn’t in the library.");
-      // Rewrite an old numeric link to the permanent slug URL
       if (rawId !== book.id)
         history.replaceState(
           null,
@@ -481,7 +474,6 @@
         saved?.total ? Math.min(saved.chapter, chapters.length - 1) : 0,
         saved?.total ? saved.scroll : 0,
       );
-      // Ask the browser not to evict downloaded books and progress when space is tight
       navigator.storage?.persist?.().catch?.(() => {});
     } catch (err) {
       fail(err.message || "The book could not be opened.");

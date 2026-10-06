@@ -1,14 +1,25 @@
 /* 3NDING service worker.
    Bump VERSION on every deploy so clients pick up the new shell.
-   Book downloads live in an UNVERSIONED cache so a deploy never deletes them. */
-const VERSION = "v2";
+   Caches that must outlive a deploy are UNVERSIONED (BOOKS) or small and self-trimming.
+
+   BOOKS   books the reader explicitly saved for offline (never trimmed here)
+   RECENT  books merely opened while online: last few only, so reloading a
+           reader page offline still works without growing forever
+   COVERS  same-origin cover images, capped
+   PAGES   visited book/ and library/ pages, capped
+   SHELL   app files (versioned)  FONTS  Google Fonts */
+const VERSION = "v1";
 const SHELL = `3nding-shell-${VERSION}`;
-const BOOKS = "3nding-books"; // must match Offline.CACHE in js/app.js
-const LEGACY_BOOKS = "archive-books"; // pre-rebrand name; copied into BOOKS once
+const BOOKS = "3nding-books"; 
+const RECENT = "3nding-recent";
+const LEGACY_BOOKS = "archive-books"; 
 const COVERS = "3nding-covers";
+const PAGES = "3nding-pages";
 const FONTS = "3nding-fonts";
-const KEEP = [SHELL, BOOKS, COVERS, FONTS];
-const MAX_COVERS = 80;
+const KEEP = [SHELL, BOOKS, RECENT, COVERS, PAGES, FONTS];
+const MAX_RECENT = 6;
+const MAX_COVERS = 150;
+const MAX_PAGES = 60;
 
 const SHELL_FILES = [
   "./",
@@ -34,7 +45,6 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SHELL);
-      // allSettled: one missing file must not break the whole install
       await Promise.allSettled(
         SHELL_FILES.map((f) => cache.add(new Request(f, { cache: "reload" }))),
       );
@@ -47,7 +57,6 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys();
-      // Keep readers' downloaded books across the rename from "Archive"
       if (names.includes(LEGACY_BOOKS)) {
         try {
           const from = await caches.open(LEGACY_BOOKS);
@@ -70,13 +79,26 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-/* Cached copy first, refreshed in the background. */
-async function staleWhileRevalidate(event, request, cacheName, key = request) {
+/* Keep only the newest `max` entries (Cache keys are in insertion order). */
+async function trimCache(cacheName, max) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  for (let i = 0; i < keys.length - max; i++) await cache.delete(keys[i]);
+}
+
+async function staleWhileRevalidate(
+  event,
+  request,
+  cacheName,
+  key = request,
+  allowOpaque = false,
+) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(key);
   const refresh = fetch(request)
     .then((res) => {
-      if (res.ok || res.type === "opaque") cache.put(key, res.clone());
+      if (res.ok || (allowOpaque && res.type === "opaque"))
+        cache.put(key, res.clone());
       return res;
     })
     .catch(() => null);
@@ -87,7 +109,8 @@ async function staleWhileRevalidate(event, request, cacheName, key = request) {
   return (await refresh) || Response.error();
 }
 
-/* Network first; on a slow or dead connection fall back to the saved copy. */
+/* Network first; on a slow or dead connection fall back to the saved copy.
+   Redirected responses are never cached (a cached redirect breaks navigations). */
 async function networkFirst(
   event,
   request,
@@ -98,7 +121,7 @@ async function networkFirst(
   const cache = await caches.open(cacheName);
   const cached = await cache.match(key);
   const network = fetch(request).then((res) => {
-    if (res.ok) cache.put(key, res.clone());
+    if (res.ok && !res.redirected) cache.put(key, res.clone());
     return res;
   });
   if (!cached) return network.catch(() => Response.error());
@@ -110,29 +133,49 @@ async function networkFirst(
   ]);
 }
 
-/* Books and fonts don't change under the same URL: download once, reuse. */
-async function cacheFirst(request, cacheName) {
+/* Font files never change under the same URL: download once, reuse. */
+async function cacheFirst(event, request, cacheName) {
   const cache = await caches.open(cacheName);
   const hit = await cache.match(request);
   if (hit) return hit;
   const res = await fetch(request);
-  if (res.ok) cache.put(request, res.clone());
+  if (res.ok) event.waitUntil(cache.put(request, res.clone()).catch(() => {}));
   return res;
 }
 
-async function trimCache(cacheName, max) {
-  const cache = await caches.open(cacheName);
-  const keys = await cache.keys();
-  for (let i = 0; i < keys.length - max; i++) await cache.delete(keys[i]);
+async function bookZip(event, request) {
+  const hit = await caches.match(request); // BOOKS or RECENT
+  if (hit) return hit;
+  const res = await fetch(request);
+  if (res.status === 200) {
+    const copy = res.clone();
+    event.waitUntil(
+      (async () => {
+        try {
+          const cache = await caches.open(RECENT);
+          await cache.put(request, copy);
+          await trimCache(RECENT, MAX_RECENT);
+        } catch {
+          /* quota or private mode: reading still works online */
+        }
+      })(),
+    );
+  }
+  return res;
 }
 
-/* reader.html?id=a and reader.html?id=b share one cached page.
-   Network first (with a saved fallback) so a deploy is never half-applied:
-   pages, scripts and books.json always come from the same version. */
 async function page(event, request) {
   const url = new URL(request.url);
   url.search = "";
-  const res = await networkFirst(event, request, SHELL, 3500, url.href);
+  const deep = /\/(book|library)\//.test(url.pathname);
+  const res = await networkFirst(
+    event,
+    request,
+    deep ? PAGES : SHELL,
+    3500,
+    url.href,
+  );
+  if (deep) event.waitUntil(trimCache(PAGES, MAX_PAGES));
   if (res && res.type !== "error") return res;
   return (await caches.match("index.html")) || Response.error();
 }
@@ -147,29 +190,31 @@ self.addEventListener("fetch", (event) => {
       return event.respondWith(networkFirst(event, request, SHELL));
     }
     if (url.pathname.endsWith(".zip")) {
-      return event.respondWith(cacheFirst(request, BOOKS));
+      return event.respondWith(bookZip(event, request));
     }
     if (request.mode === "navigate") {
       return event.respondWith(page(event, request));
+    }
+    // Self-hosted covers: revalidated in the background, capped
+    if (request.destination === "image" && url.pathname.includes("/covers/")) {
+      return event.respondWith(
+        staleWhileRevalidate(event, request, COVERS).then((res) => {
+          event.waitUntil(trimCache(COVERS, MAX_COVERS));
+          return res;
+        }),
+      );
     }
     return event.respondWith(networkFirst(event, request, SHELL));
   }
 
   // Google Fonts: the stylesheet changes occasionally, the font files never do
   if (url.hostname === "fonts.googleapis.com") {
-    return event.respondWith(staleWhileRevalidate(event, request, FONTS));
-  }
-  if (url.hostname === "fonts.gstatic.com") {
-    return event.respondWith(cacheFirst(request, FONTS));
-  }
-
-  // Cross-origin cover images: keep the ones that have been seen
-  if (request.destination === "image") {
-    event.respondWith(
-      staleWhileRevalidate(event, request, COVERS).then((res) => {
-        event.waitUntil(trimCache(COVERS, MAX_COVERS));
-        return res;
-      }),
+    return event.respondWith(
+      staleWhileRevalidate(event, request, FONTS, request, true),
     );
   }
+  if (url.hostname === "fonts.gstatic.com") {
+    return event.respondWith(cacheFirst(event, request, FONTS));
+  }
+  // Other cross-origin requests (e.g. remote cover images): leave to the browser
 });

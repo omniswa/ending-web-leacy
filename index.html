@@ -25,6 +25,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="3NDING" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="preload" as="fetch" href="books.json" crossorigin="anonymous" />
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 
@@ -45,6 +46,122 @@
     </noscript>
 
     <link rel="stylesheet" href="css/style.css" />
+    <!-- seo:head:start -->
+    <link rel="canonical" href="https://3nding.top/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="3NDING" />
+    <meta property="og:title" content="3NDING — Browse the library" />
+    <meta
+      property="og:description"
+      content="Browse, favorite and read books in the 3NDING library, online or offline."
+    />
+    <meta property="og:url" content="https://3nding.top/" />
+    <meta
+      property="og:image"
+      content="https://picsum.photos/seed/book-cartographers-daughter/600/800"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="3NDING — Browse the library" />
+    <meta
+      name="twitter:description"
+      content="Browse, favorite and read books in the 3NDING library, online or offline."
+    />
+    <meta
+      name="twitter:image"
+      content="https://picsum.photos/seed/book-cartographers-daughter/600/800"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://3nding.top/#org",
+            "name": "3NDING",
+            "url": "https://3nding.top/",
+            "logo": "https://3nding.top/icons/icon-512.png"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://3nding.top/#site",
+            "name": "3NDING",
+            "url": "https://3nding.top/",
+            "description": "Browse, favorite and read books in the 3NDING library, online or offline.",
+            "publisher": { "@id": "https://3nding.top/#org" },
+            "inLanguage": "en"
+          },
+          {
+            "@type": "ItemList",
+            "name": "All books",
+            "numberOfItems": 10,
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "url": "https://3nding.top/book/cartographers-daughter.html",
+                "name": "The Cartographer's Daughter"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "url": "https://3nding.top/book/letter-to-a-young-botanist.html",
+                "name": "Letters to a Young Botanist"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "url": "https://3nding.top/book/of-silent-things.html",
+                "name": "Of Silent Things"
+              },
+              {
+                "@type": "ListItem",
+                "position": 4,
+                "url": "https://3nding.top/book/year-of-long-afternoons.html",
+                "name": "The Year of Long Afternoons"
+              },
+              {
+                "@type": "ListItem",
+                "position": 5,
+                "url": "https://3nding.top/book/anatomy-of-quiet-room.html",
+                "name": "Anatomy of a Quiet Room"
+              },
+              {
+                "@type": "ListItem",
+                "position": 6,
+                "url": "https://3nding.top/book/last-lighthouse-keeper.html",
+                "name": "The Last Lighthouse Keeper"
+              },
+              {
+                "@type": "ListItem",
+                "position": 7,
+                "url": "https://3nding.top/book/field-notes-from-the-edge.html",
+                "name": "Field Notes from the Edge"
+              },
+              {
+                "@type": "ListItem",
+                "position": 8,
+                "url": "https://3nding.top/book/glasshouse-years.html",
+                "name": "The Glasshouse Years"
+              },
+              {
+                "@type": "ListItem",
+                "position": 9,
+                "url": "https://3nding.top/book/slow-waters.html",
+                "name": "Slow Water"
+              },
+              {
+                "@type": "ListItem",
+                "position": 10,
+                "url": "https://3nding.top/book/pocket-book-of-hours.html",
+                "name": "A Pocket Book of Hours"
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+    <!-- seo:head:end -->
   </head>
   <body>
     <header class="site-header">
@@ -69,7 +186,7 @@
 
       <section id="recent-section" aria-labelledby="recent-title" hidden>
         <h2 class="section-title" id="recent-title">Continue reading</h2>
-        <ul class="rail" id="recent"></ul>
+        <ul class="rail" id="recent" role="list"></ul>
       </section>
 
       <section aria-labelledby="all-title">
@@ -98,7 +215,180 @@
           </label>
         </div>
         <p id="status" class="page-sub" role="status"></p>
-        <ul class="grid" id="grid"></ul>
+        <ul class="grid" id="grid">
+          <!-- seo:grid:start -->
+          <li class="card">
+            <a class="cover" href="book/cartographers-daughter.html"
+              ><img
+                src="https://picsum.photos/seed/book-cartographers-daughter/600/800"
+                alt="Cover of The Cartographer&#39;s Daughter"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3>
+                <a href="book/cartographers-daughter.html"
+                  >The Cartographer&#39;s Daughter</a
+                >
+              </h3>
+              <p class="meta">Eleanor Whitfield</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/letter-to-a-young-botanist.html"
+              ><img
+                src="https://picsum.photos/seed/book-letters-botanist/600/800"
+                alt="Cover of Letters to a Young Botanist"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3>
+                <a href="book/letter-to-a-young-botanist.html"
+                  >Letters to a Young Botanist</a
+                >
+              </h3>
+              <p class="meta">H. T. Marwick</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/of-silent-things.html"
+              ><img
+                src="https://picsum.photos/seed/book-silent-things/600/800"
+                alt="Cover of Of Silent Things"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3><a href="book/of-silent-things.html">Of Silent Things</a></h3>
+              <p class="meta">Yuki Tawara</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/year-of-long-afternoons.html"
+              ><img
+                src="https://picsum.photos/seed/book-long-afternoons/600/800"
+                alt="Cover of The Year of Long Afternoons"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3>
+                <a href="book/year-of-long-afternoons.html"
+                  >The Year of Long Afternoons</a
+                >
+              </h3>
+              <p class="meta">Marco Bianchi</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/anatomy-of-quiet-room.html"
+              ><img
+                src="https://picsum.photos/seed/book-quiet-room/600/800"
+                alt="Cover of Anatomy of a Quiet Room"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3>
+                <a href="book/anatomy-of-quiet-room.html"
+                  >Anatomy of a Quiet Room</a
+                >
+              </h3>
+              <p class="meta">Iris Cole</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/last-lighthouse-keeper.html"
+              ><img
+                src="https://picsum.photos/seed/book-lighthouse-keeper/600/800"
+                alt="Cover of The Last Lighthouse Keeper"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3>
+                <a href="book/last-lighthouse-keeper.html"
+                  >The Last Lighthouse Keeper</a
+                >
+              </h3>
+              <p class="meta">A. F. Pemberton</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/field-notes-from-the-edge.html"
+              ><img
+                src="https://picsum.photos/seed/book-field-notes-edge/600/800"
+                alt="Cover of Field Notes from the Edge"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3>
+                <a href="book/field-notes-from-the-edge.html"
+                  >Field Notes from the Edge</a
+                >
+              </h3>
+              <p class="meta">Tobias Lyle</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/glasshouse-years.html"
+              ><img
+                src="https://picsum.photos/seed/book-glasshouse-years/600/800"
+                alt="Cover of The Glasshouse Years"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3>
+                <a href="book/glasshouse-years.html">The Glasshouse Years</a>
+              </h3>
+              <p class="meta">Petra Holm</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/slow-waters.html"
+              ><img
+                src="https://picsum.photos/seed/book-slow-water/600/800"
+                alt="Cover of Slow Water"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3><a href="book/slow-waters.html">Slow Water</a></h3>
+              <p class="meta">Nadia Okafor</p>
+            </div>
+          </li>
+          <li class="card">
+            <a class="cover" href="book/pocket-book-of-hours.html"
+              ><img
+                src="https://picsum.photos/seed/book-pocket-hours/600/800"
+                alt="Cover of A Pocket Book of Hours"
+                loading="lazy"
+                width="600"
+                height="800"
+            /></a>
+            <div>
+              <h3>
+                <a href="book/pocket-book-of-hours.html"
+                  >A Pocket Book of Hours</a
+                >
+              </h3>
+              <p class="meta">Anonymous</p>
+            </div>
+          </li>
+          <!-- seo:grid:end -->
+        </ul>
         <nav class="pager" id="pager" aria-label="Pagination" hidden></nav>
       </section>
     </main>
@@ -119,7 +409,7 @@
         </nav>
       </div>
       <div class="sf-base">
-        <p>Your favorites, progress and streaks stays.</p>
+        <p>Your favorites, progress and streaks stay on this device.</p>
         <p>&copy; <span id="year">2026</span> 3NDING</p>
       </div>
     </footer>

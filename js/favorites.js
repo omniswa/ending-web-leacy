@@ -3,7 +3,6 @@
 (() => {
   const list = $("#list");
   const empty = $("#empty");
-  /* Cards drawn at once; "Show more" reveals the next batch */
   const BATCH = 24;
   const state = { books: [], filter: "all", limit: BATCH };
   const more = document.createElement("button");
@@ -16,7 +15,7 @@
     const favs = Favs.all();
     return state.books
       .filter((b) => favs[b.id])
-      .sort((a, b) => favs[b.id].addedAt - favs[a.id].addedAt);
+      .sort((a, b) => (favs[b.id].addedAt || 0) - (favs[a.id].addedAt || 0));
   };
 
   const cardHTML = (b) => {
@@ -93,7 +92,6 @@
       toast(done ? "Marked as finished" : "Marked as unfinished");
     }
     render();
-    // Re-rendering drops focus; put it back where the user was
     const again = list.querySelector(
       `[data-id="${CSS.escape(id)}"] [data-action="${action}"]`,
     );
@@ -115,7 +113,6 @@
     const before = list.children.length;
     state.limit += BATCH;
     render();
-    // Re-rendering drops focus; move it to the first newly revealed book
     list.children[before]?.querySelector(".btn-primary")?.focus();
   });
 

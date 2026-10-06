@@ -1,0 +1,20 @@
+# 3NDING
+
+> Browse, favorite and read books in the 3NDING library, online or offline. A small library of long afternoons, quiet rooms and far coastlines. Books can be read in the browser or saved for offline reading. Favorites, progress and reading streaks are stored only on the reader's device.
+
+## Books
+
+- [The Cartographer's Daughter](https://3nding.top/book/cartographers-daughter.html): by Eleanor Whitfield. The Cartographer's Daughter by Eleanor Whitfield. Read it online or save it for offline reading in the 3NDING library.
+- [Letters to a Young Botanist](https://3nding.top/book/letter-to-a-young-botanist.html): by H. T. Marwick. Letters to a Young Botanist by H. T. Marwick. Read it online or save it for offline reading in the 3NDING library.
+- [Of Silent Things](https://3nding.top/book/of-silent-things.html): by Yuki Tawara. Of Silent Things by Yuki Tawara. Read it online or save it for offline reading in the 3NDING library.
+- [The Year of Long Afternoons](https://3nding.top/book/year-of-long-afternoons.html): by Marco Bianchi. The Year of Long Afternoons by Marco Bianchi. Read it online or save it for offline reading in the 3NDING library.
+- [Anatomy of a Quiet Room](https://3nding.top/book/anatomy-of-quiet-room.html): by Iris Cole. Anatomy of a Quiet Room by Iris Cole. Read it online or save it for offline reading in the 3NDING library.
+- [The Last Lighthouse Keeper](https://3nding.top/book/last-lighthouse-keeper.html): by A. F. Pemberton. The Last Lighthouse Keeper by A. F. Pemberton. Read it online or save it for offline reading in the 3NDING library.
+- [Field Notes from the Edge](https://3nding.top/book/field-notes-from-the-edge.html): by Tobias Lyle. Field Notes from the Edge by Tobias Lyle. Read it online or save it for offline reading in the 3NDING library.
+- [The Glasshouse Years](https://3nding.top/book/glasshouse-years.html): by Petra Holm. The Glasshouse Years by Petra Holm. Read it online or save it for offline reading in the 3NDING library.
+- [Slow Water](https://3nding.top/book/slow-waters.html): by Nadia Okafor. Slow Water by Nadia Okafor. Read it online or save it for offline reading in the 3NDING library.
+- [A Pocket Book of Hours](https://3nding.top/book/pocket-book-of-hours.html): by Anonymous. A Pocket Book of Hours by Anonymous. Read it online or save it for offline reading in the 3NDING library.
+
+## Optional
+
+- [Sitemap](https://3nding.top/sitemap.xml)
