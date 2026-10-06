@@ -740,7 +740,7 @@ body.is-offline .fav-card:not(.saved) {
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   line-height: 1.3;
 }
 .sc-foot {
@@ -1049,7 +1049,7 @@ body.reader {
   max-width: var(--measure);
   margin: 0 auto;
   padding: 48px max(22px, env(safe-area-inset-right))
-    calc(110px + env(safe-area-inset-bottom))
+    calc(64px + env(safe-area-inset-bottom))
     max(22px, env(safe-area-inset-left));
   font-size: var(--fs);
   line-height: 1.75;
