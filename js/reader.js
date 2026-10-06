@@ -291,7 +291,7 @@
   $("#next").addEventListener("click", () => {
     if (loading) return;
     if (current < chapters.length - 1) return go(1);
-    if (finishedNow) return $("#back").click(); 
+    if (finishedNow) return $("#back").click();
     Favs.setFinished(book.id, true);
     finishedNow = true;
     $("#next").textContent = "Library";
@@ -373,11 +373,11 @@
     passive: true,
   });
 
-  /* ---------- Touch devices: tap the page to hide or show the bars ---------- */
-  const touchUI = matchMedia("(max-width: 560px), (pointer: coarse)");
+  /* ---------- Phones: tap the page to hide or show the bars --------- */
+  const touchUI = matchMedia("(max-width: 560px)");
   document.addEventListener("click", (e) => {
     if (!touchUI.matches || panelOpen()) return;
-    if (String(getSelection())) return; 
+    if (String(getSelection())) return;
     if (
       e.target.closest(
         ".r-bar, .r-foot, .panel, .scrim, #exit-fs, a, button, input, select, label",
@@ -428,11 +428,7 @@
       book = books.find((b) => b.id === bookId);
       if (!book) return fail("That book isn’t in the library.");
       if (rawId !== book.id)
-        history.replaceState(
-          null,
-          "",
-          readerUrl(book, restart),
-        );
+        history.replaceState(null, "", readerUrl(book, restart));
       document.title = `${book.title} — 3NDING`;
       $("#book-title").textContent = book.title;
 
@@ -442,7 +438,7 @@
       } catch {
         throw new Error(
           navigator.onLine === false
-            ? "You’re offline and this book hasn’t been saved. Open it once while online, or use the download button in the library."
+            ? "You’re offline. Reconnect and try again."
             : "Couldn’t reach the server. Check your connection and try again.",
         );
       }
@@ -474,7 +470,6 @@
         saved?.total ? Math.min(saved.chapter, chapters.length - 1) : 0,
         saved?.total ? saved.scroll : 0,
       );
-      navigator.storage?.persist?.().catch?.(() => {});
     } catch (err) {
       fail(err.message || "The book could not be opened.");
     }

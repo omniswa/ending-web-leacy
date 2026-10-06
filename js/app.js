@@ -62,6 +62,7 @@ const Store = {
     Store.cache.clear();
   },
 };
+
 /* Registered first, so it runs before every other storage/pageshow listener */
 window.addEventListener("storage", Store.invalidate);
 window.addEventListener("pageshow", (e) => e.persisted && Store.invalidate());
@@ -184,7 +185,17 @@ async function loadBooks() {
       continue;
     }
     seen.add(b.id);
-    books.push({ ...b, order: books.length });
+    // Normalise optional fields so a sparse entry can't break sorting,
+    // searching or rendering ("undefined" text, undefined.trim(), etc.)
+    books.push({
+      ...b,
+      title: String(b.title),
+      zip: String(b.zip),
+      author: b.author ? String(b.author) : "",
+      cover: b.cover ? String(b.cover) : "",
+      added: b.added ? String(b.added) : "",
+      order: books.length,
+    });
   }
   loadBooks.ids = seen;
   updateFavCount();
@@ -245,7 +256,9 @@ const escapeHTML = (s) =>
   );
 
 const coverImg = (b, eager = false) =>
-  `<img src="${escapeHTML(b.cover)}" alt="Cover of ${escapeHTML(b.title)}" loading="${eager ? "eager" : "lazy"}" width="600" height="800">`;
+  b.cover
+    ? `<img src="${escapeHTML(b.cover)}" alt="Cover of ${escapeHTML(b.title)}" loading="${eager ? "eager" : "lazy"}" width="600" height="800">`
+    : "";
 
 document.addEventListener("DOMContentLoaded", updateFavCount);
 window.addEventListener("storage", updateFavCount);
@@ -422,212 +435,28 @@ document.addEventListener("DOMContentLoaded", updateStreakChip);
 window.addEventListener("storage", updateStreakChip);
 window.addEventListener("pageshow", updateStreakChip);
 
-/* ---------- Offline books: save a zip into the Cache API ---------- */
-const Offline = {
-  CACHE: "3nding-books",
-  supported:
-    "caches" in window &&
-    "serviceWorker" in navigator &&
-    window.isSecureContext,
-  saved: new Set(),
-  busy: new Map(), 
-  abs: (zip) => new URL(zip, location.href).href,
-  has: (zip) => Offline.saved.has(Offline.abs(zip)),
-  state(zip) {
-    if (Offline.busy.has(zip)) return "busy";
-    return Offline.has(zip) ? "saved" : "idle";
-  },
-  inner(zip) {
-    const s = Offline.state(zip);
-    if (s === "saved") return icon("check", 18);
-    if (s === "busy") {
-      const p = Offline.busy.get(zip);
-      const known = p >= 0;
-      const off = known ? 88 * (1 - p) : 66;
-      return `<svg class="ring ${known ? "" : "spin"}" viewBox="0 0 36 36" aria-hidden="true"><circle class="trk" cx="18" cy="18" r="14"/><circle class="val" cx="18" cy="18" r="14" style="stroke-dashoffset:${off}"/></svg>`;
+/* ---------- Retire the old PWA ----------
+   Earlier versions registered a service worker and cached pages and books.
+   Unregister it and drop its caches so returning visitors get fresh files.
+   Safe to delete this block once nobody can still have the old worker. */
+(async function retirePWA() {
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
     }
-    return icon("download", 18);
-  },
-  tip: (s) =>
-    s === "saved"
-      ? "Saved for offline reading. Tap to remove."
-      : s === "busy"
-        ? "Downloading…"
-        : "Save for offline reading",
-  btn(book, cls) {
-    if (!Offline.supported) return "";
-    const s = Offline.state(book.zip);
-    return `<button type="button" class="${cls} offline-btn" data-offline data-zip="${escapeHTML(book.zip)}" data-title="${escapeHTML(book.title)}"
-      aria-pressed="${s === "saved"}" aria-busy="${s === "busy"}" aria-label="${s === "saved" ? "Remove offline copy" : "Save offline"}: ${escapeHTML(book.title)}" title="${Offline.tip(s)}">${Offline.inner(book.zip)}</button>`;
-  },
-  paint(zip) {
-    const s = Offline.state(zip);
-    document.querySelectorAll("[data-offline]").forEach((b) => {
-      if (b.dataset.zip !== zip) return;
-      b.innerHTML = Offline.inner(zip);
-      b.setAttribute("aria-pressed", s === "saved");
-      b.setAttribute("aria-busy", s === "busy");
-      b.title = Offline.tip(s);
-      b.setAttribute(
-        "aria-label",
-        `${s === "saved" ? "Remove offline copy" : "Save offline"}: ${b.dataset.title}`,
-      );
-      b.closest(".card, .fav-card")?.classList.toggle("saved", s === "saved");
-    });
-  },
-  paintAll() {
-    new Set(
-      [...document.querySelectorAll("[data-offline]")].map(
-        (b) => b.dataset.zip,
-      ),
-    ).forEach(Offline.paint);
-  },
-  async refresh() {
-    if (!Offline.supported) return;
-    try {
-      const cache = await caches.open(Offline.CACHE);
-      Offline.saved = new Set((await cache.keys()).map((r) => r.url));
-    } catch {
-      /* private mode etc. */
-    }
-    Offline.paintAll();
-  },
-  async toggle(zip, title) {
-    const state = Offline.state(zip);
-    if (state === "busy") return;
-    const url = Offline.abs(zip);
-    try {
-      const cache = await caches.open(Offline.CACHE);
-      if (state === "saved") {
-        await cache.delete(url);
-        Offline.saved.delete(url);
-        Offline.paint(zip);
-        return toast("Removed the offline copy");
-      }
-      Offline.busy.set(zip, 0);
-      Offline.paint(zip);
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const total = Number(res.headers.get("content-length")) || 0;
-      const reader = res.clone().body?.getReader();
-      const stored = cache.put(url, res);
-      stored.catch(() => {});
-      if (reader) {
-        let got = 0;
-        let last = 0;
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          got += value.length;
-          const p = total ? Math.min(0.97, got / total) : -1;
-          if (Date.now() - last > 80) {
-            last = Date.now();
-            Offline.busy.set(zip, p);
-            Offline.paint(zip);
-          }
-        }
-      }
-      await stored;
-      Offline.saved.add(url);
-      Offline.busy.delete(zip);
-      Offline.paint(zip);
-      toast(`Saved “${title}” for offline reading`);
-      navigator.storage?.persist?.().catch?.(() => {});
-    } catch (err) {
-      Offline.busy.delete(zip);
-      Offline.paint(zip);
-      toast(
-        err?.name === "QuotaExceededError"
-          ? "Not enough storage space on this device"
-          : "Couldn’t download this book. Try again.",
+    if ("caches" in window) {
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter((n) => n.startsWith("3nding-") || n === "archive-books")
+          .map((n) => caches.delete(n)),
       );
     }
-  },
-};
-
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-offline]");
-  if (b) {
-    e.preventDefault();
-    return Offline.toggle(b.dataset.zip, b.dataset.title);
+  } catch {
+    /* nothing to clean up */
   }
-  const link = e.target.closest('a[href^="reader.html"]');
-  if (link && navigator.onLine === false) {
-    const card = link.closest(".card, .fav-card");
-    if (card && !card.classList.contains("saved")) {
-      e.preventDefault();
-      toast("Save this book for offline reading while you’re online");
-    }
-  }
-});
-window.addEventListener("pageshow", Offline.refresh);
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") Offline.refresh();
-});
-const syncOnline = () =>
-  document.body.classList.toggle("is-offline", navigator.onLine === false);
-syncOnline();
-window.addEventListener("online", syncOnline);
-window.addEventListener("offline", syncOnline);
-
-/* ---------- PWA: service worker, install prompt, offline notices ---------- */
-const Install = {
-  event: null,
-  standalone:
-    matchMedia("(display-mode: standalone)").matches ||
-    navigator.standalone === true,
-  ios:
-    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1),
-  async run() {
-    if (!Install.event) return;
-    Install.event.prompt();
-    await Install.event.userChoice.catch(() => {});
-    Install.event = null;
-    document.dispatchEvent(new Event("installchange"));
-  },
-};
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  Install.event = e;
-  document.dispatchEvent(new Event("installchange"));
-});
-window.addEventListener("appinstalled", () => {
-  Install.event = null;
-  Install.standalone = true;
-  document.dispatchEvent(new Event("installchange"));
-  toast("3NDING installed");
-});
-
-if (
-  "serviceWorker" in navigator &&
-  (location.protocol === "https:" ||
-    ["localhost", "127.0.0.1"].includes(location.hostname))
-) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("sw.js")
-      .then((reg) => {
-        reg.addEventListener("updatefound", () => {
-          const worker = reg.installing;
-          worker?.addEventListener("statechange", () => {
-            if (
-              worker.state === "installed" &&
-              navigator.serviceWorker.controller
-            )
-              toast("Update ready — reload to get it");
-          });
-        });
-      })
-      .catch(() => {
-        /* offline support is optional */
-      });
-  });
-}
-window.addEventListener("offline", () =>
-  toast("You’re offline — books you’ve opened still work"),
-);
-window.addEventListener("online", () => toast("Back online"));
+})();
 
 /* ---------- Minimal ZIP reader (stored + deflate via DecompressionStream) ---------- */
 async function unzip(buffer) {

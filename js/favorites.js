@@ -29,7 +29,7 @@
         ? "Continue reading"
         : "Start reading";
     return `
-      <li class="fav-card${Offline.has(b.zip) ? " saved" : ""}" data-id="${escapeHTML(b.id)}">
+      <li class="fav-card" data-id="${escapeHTML(b.id)}">
         <a class="cover" href="${href}" tabindex="-1" aria-hidden="true">${coverImg(b)}</a>
         <div>
           <h3>${escapeHTML(b.title)}</h3>
@@ -46,7 +46,6 @@
             <button class="icon-btn" data-action="remove" aria-label="Remove ${escapeHTML(b.title)} from favorites">${icon("x")}</button>
           </div>
         </div>
-        ${Offline.btn(b, "icon-btn")}
       </li>`;
   };
 

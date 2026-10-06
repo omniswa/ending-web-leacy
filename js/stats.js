@@ -17,7 +17,9 @@
           : "First week"
         : "Start today";
     const pct = Math.round(((total - prev) / prev) * 100);
-    return pct === 0 ? "Same as last week" : `${pct > 0 ? "+" : ""}${pct}% vs last week`;
+    return pct === 0
+      ? "Same as last week"
+      : `${pct > 0 ? "+" : ""}${pct}% vs last week`;
   }
 
   function render() {
@@ -31,7 +33,8 @@
     const left = Math.max(1, Math.ceil((s.goalSec - today) / 60));
 
     let message;
-    if (doneToday) message = "Goal reached. Come back tomorrow to keep it going.";
+    if (doneToday)
+      message = "Goal reached. Come back tomorrow to keep it going.";
     else if (streak) message = `${left} min left today to keep your streak.`;
     else message = `Read ${s.goal} minutes today to start a streak.`;
 
@@ -54,9 +57,6 @@
     const chartLabel = `Minutes read each day, last 7 days: ${s.days
       .map((d) => `${d.name} ${minutes(d.seconds)}`)
       .join(", ")}. Daily goal ${s.goal} minutes.`;
-
-    const canInstall = !!Install.event;
-    const iosHint = Install.ios && !Install.standalone && !canInstall;
 
     host.innerHTML = `
       <h2 class="section-title" id="streak-title">Your reading week</h2>
@@ -102,13 +102,6 @@
             </select>
           </label>
         </div>
-        ${
-          canInstall
-            ? `<button class="btn btn-primary install" id="install" type="button">${icon("download", 16)}Install app for offline reading</button>`
-            : iosHint
-              ? `<p class="install-hint">Install: tap Share, then “Add to Home Screen”, to read offline.</p>`
-              : ""
-        }
       </div>`;
 
     if (keepGoalFocus) $("#goal")?.focus();
@@ -118,9 +111,6 @@
     if (e.target.id !== "goal") return;
     Streak.setGoal(Number(e.target.value));
     render();
-  });
-  host.addEventListener("click", (e) => {
-    if (e.target.closest("#install")) Install.run();
   });
 
   render();
@@ -132,7 +122,6 @@
     }, 400);
   });
   window.addEventListener("pageshow", (e) => e.persisted && render());
-  document.addEventListener("installchange", render);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") render();
   });

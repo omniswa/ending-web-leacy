@@ -167,7 +167,6 @@ function innerPage({ title, desc, url, robots, ogType = "website", img, ld, body
     <meta name="twitter:description" content="${esc(desc)}" />
     <meta name="twitter:image" content="${esc(img)}" />
     <meta name="theme-color" content="#f5f6f8" />
-    <link rel="manifest" href="../manifest.webmanifest" />
     <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="${FONTS}" />
     <link rel="stylesheet" href="../css/style.css" />

@@ -49,7 +49,7 @@
     const href = readerUrl(b, done);
     const label = done ? "Read again" : pct ? "Continue" : "Open";
     return `
-      <li class="card${Offline.has(b.zip) ? " saved" : ""}" data-id="${escapeHTML(b.id)}">
+      <li class="card" data-id="${escapeHTML(b.id)}">
         <div class="cover-wrap">
           <a class="cover" href="${href}" tabindex="-1" aria-hidden="true">
             ${coverImg(b, i < 4)}
@@ -57,7 +57,6 @@
           </a>
           <button class="chip chip-fav ${fav ? "on" : ""}" type="button" data-action="fav" aria-pressed="${fav}"
             aria-label="${fav ? "Remove from favorites" : "Add to favorites"}: ${escapeHTML(b.title)}">${icon("heart")}</button>
-          ${Offline.btn(b, "chip chip-off")}
         </div>
         <div>
           <h3 title="${escapeHTML(b.title)}">${escapeHTML(b.title)}</h3>
